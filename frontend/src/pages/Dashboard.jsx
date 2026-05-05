@@ -3,6 +3,9 @@ import Navbar from '../components/Navbar'
 import { getCampaigns, getAllTranscripts } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { Link } from 'react-router-dom'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+
+const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444']
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -15,35 +18,91 @@ export default function Dashboard() {
   }, [])
 
   const stats = [
-    { label: 'Total campaigns', value: campaigns.length },
-    { label: 'Calls completed', value: transcripts.length },
-    { label: 'Positive calls', value: transcripts.filter(t => t.sentiment === 'positive').length },
-    { label: 'Active campaigns', value: campaigns.filter(c => c.status === 'running').length },
+    { label: 'Total campaigns', value: campaigns.length, color: 'text-indigo-600' },
+    { label: 'Calls completed', value: transcripts.length, color: 'text-green-600' },
+    { label: 'Positive calls', value: transcripts.filter(t => t.sentiment === 'positive').length, color: 'text-emerald-600' },
+    { label: 'Active campaigns', value: campaigns.filter(c => c.status === 'running').length, color: 'text-yellow-600' },
   ]
+
+  const sentimentData = [
+    { name: 'Positive', value: transcripts.filter(t => t.sentiment === 'positive').length },
+    { name: 'Neutral', value: transcripts.filter(t => t.sentiment === 'neutral').length },
+    { name: 'Negative', value: transcripts.filter(t => t.sentiment === 'negative').length },
+  ].filter(d => d.value > 0)
+
+  const campaignData = campaigns.slice(0, 5).map(c => ({
+    name: c.name.length > 12 ? c.name.slice(0, 12) + '...' : c.name,
+    calls: transcripts.filter(t => t.campaign_id === c.id).length
+  }))
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-6xl mx-auto px-6 py-8">
         <h1 className="text-2xl font-semibold text-gray-800 mb-1">
-          Good morning, {user?.name}
+          Good morning, {user?.name} 👋
         </h1>
         <p className="text-gray-500 text-sm mb-8">Here's your VoiceIQ overview</p>
 
+        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {stats.map(s => (
             <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5">
-              <p className="text-3xl font-semibold text-indigo-600">{s.value}</p>
+              <p className={`text-3xl font-semibold ${s.color}`}>{s.value}</p>
               <p className="text-sm text-gray-500 mt-1">{s.label}</p>
             </div>
           ))}
         </div>
 
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
+
+          {/* Sentiment pie chart */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-base font-medium text-gray-700 mb-4">Call sentiment breakdown</h2>
+            {sentimentData.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No calls yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={sentimentData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({name, value}) => `${name}: ${value}`}>
+                    {sentimentData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Calls per campaign bar chart */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-base font-medium text-gray-700 mb-4">Calls per campaign</h2>
+            {campaignData.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No campaigns yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={campaignData}>
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="calls" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-6">
+
+          {/* Recent campaigns */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-base font-medium text-gray-700 mb-4">Recent campaigns</h2>
             {campaigns.length === 0 ? (
-              <p className="text-sm text-gray-400">No campaigns yet. <Link to="/campaigns" className="text-indigo-500">Create one</Link></p>
+              <p className="text-sm text-gray-400">
+                No campaigns yet.{' '}
+                <Link to="/campaigns" className="text-indigo-500">Create one</Link>
+              </p>
             ) : (
               <div className="space-y-3">
                 {campaigns.slice(0, 5).map(c => (
@@ -60,6 +119,7 @@ export default function Dashboard() {
             )}
           </div>
 
+          {/* Quick actions */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-base font-medium text-gray-700 mb-4">Quick actions</h2>
             <div className="space-y-3">
