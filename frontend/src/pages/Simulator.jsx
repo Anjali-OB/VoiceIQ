@@ -30,12 +30,17 @@ export default function Simulator() {
   const pausedRef = useRef(false)
 
   useEffect(() => {
-    loadData()
-    return () => {
-      stopSpeech()
-      stopListening()
-    }
-  }, [])
+  // Chrome loads voices asynchronously
+  const loadVoices = () => {
+    const voices = synthRef.current.getVoices()
+    console.log('Voices loaded:', voices.length)
+  }
+  
+  loadVoices()
+  if (synthRef.current.onvoiceschanged !== undefined) {
+    synthRef.current.onvoiceschanged = loadVoices
+  }
+}, [])
 
   const loadData = async () => {
     try {
@@ -62,17 +67,45 @@ export default function Simulator() {
   }
 
   const speak = (text) => {
-    return new Promise((resolve) => {
-      stopSpeech()
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = 0.9
-      utterance.pitch = 1
-      utterance.volume = 1
-      utterance.onend = resolve
-      utterance.onerror = resolve
-      synthRef.current.speak(utterance)
-    })
-  }
+  return new Promise((resolve) => {
+    stopSpeech()
+
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.rate = 0.9
+    utterance.pitch = 1
+    utterance.volume = 1
+
+    const lang = campaign?.language || 'en-US'
+    utterance.lang = lang
+
+    // Get available voices and pick one matching the language
+    const voices = synthRef.current.getVoices()
+    console.log('Available voices:', voices.map(v => `${v.name} (${v.lang})`))
+
+    // Try to find exact language match first
+    let selectedVoice = voices.find(v => v.lang === lang)
+
+    // Fallback: match just the language prefix (e.g. 'hi' for 'hi-IN')
+    if (!selectedVoice) {
+      const prefix = lang.split('-')[0]
+      selectedVoice = voices.find(v => v.lang.startsWith(prefix))
+    }
+
+    // Fallback: English if nothing found
+    if (!selectedVoice) {
+      selectedVoice = voices.find(v => v.lang.startsWith('en'))
+    }
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice
+      console.log('Using voice:', selectedVoice.name, selectedVoice.lang)
+    }
+
+    utterance.onend = resolve
+    utterance.onerror = resolve
+    synthRef.current.speak(utterance)
+  })
+}
 
   const stopSpeech = () => {
     if (synthRef.current && synthRef.current.speaking) {
@@ -81,49 +114,37 @@ export default function Simulator() {
   }
 
   const listenOnce = () => {
-    return new Promise((resolve) => {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      if (!SpeechRecognition) {
-        resolve('(speech recognition not supported)')
-        return
+  return new Promise((resolve) => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      resolve('(speech recognition not supported)')
+      return
+    }
+
+    const recognition = new SpeechRecognition()
+    recognition.lang = campaign?.language || 'en-US'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+    recognitionRef.current = recognition
+
+    let resolved = false
+    const done = (text) => {
+      if (!resolved) {
+        resolved = true
+        resolve(text)
       }
+    }
 
-      const recognition = new SpeechRecognition()
-      recognition.lang = 'en-US'
-      recognition.interimResults = false
-      recognition.maxAlternatives = 1
-      recognitionRef.current = recognition
+    recognition.onresult = (e) => done(e.results[0][0].transcript)
+    recognition.onerror = (e) => {
+      if (e.error === 'no-speech') done('(no response)')
+      else done('(could not hear)')
+    }
+    recognition.onend = () => done('(no response)')
 
-      let resolved = false
-
-      const done = (text) => {
-        if (!resolved) {
-          resolved = true
-          resolve(text)
-        }
-      }
-
-      recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript
-        done(transcript)
-      }
-
-      recognition.onerror = (e) => {
-        if (e.error === 'no-speech') done('(no response)')
-        else done('(could not hear)')
-      }
-
-      recognition.onend = () => {
-        done('(no response)')
-      }
-
-      try {
-        recognition.start()
-      } catch (e) {
-        done('(mic error)')
-      }
-    })
-  }
+    try { recognition.start() } catch (e) { done('(mic error)') }
+  })
+}
 
   const stopListening = () => {
     if (recognitionRef.current) {
@@ -186,10 +207,11 @@ export default function Simulator() {
 
       try {
         const res = await aiRespond({
-          script,
-          conversation: convo.slice(0, -1),
-          user_message: userSpeech
-        })
+  script,
+  conversation: convo.slice(0, -1),
+  user_message: userSpeech,
+  language: campaign?.language || 'en-US'
+})
         const reply = res.data.reply
 
         convo.push({ role: 'assistant', content: reply })

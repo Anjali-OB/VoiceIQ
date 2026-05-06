@@ -37,7 +37,13 @@ If the person seems done talking, wrap up politely."""
         max_tokens=150,
         temperature=0.7
     )
-
+    lang_map = {
+    "hi-IN": "Respond in Hindi.",
+    "mr-IN": "Respond in Marathi.",
+    "en-US": "Respond in English."
+}
+    language = data.get("language", "en-US")
+    lang_instruction = lang_map.get(language, "Respond in English.")
     reply = response.choices[0].message.content
     return jsonify({"reply": reply}), 200
 
@@ -89,3 +95,44 @@ You MUST respond with only valid JSON in this exact format, nothing else:
 
     print("Final result:", result)
     return jsonify(result), 200
+
+@ai_bp.route("/generate-script", methods=["POST"])
+@jwt_required()
+def generate_script():
+    try:
+        data = request.json
+        goal = data.get("goal", "")
+        language = data.get("language", "en-US")
+
+        lang_instruction = {
+            "hi-IN": "Write the script in Hindi (Devanagari script).",
+            "mr-IN": "Write the script in Marathi (Devanagari script).",
+            "en-US": "Write the script in English."
+        }.get(language, "Write the script in English.")
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"""You are an expert call center script writer.
+{lang_instruction}
+Write a professional, friendly, and natural AI phone call script based on the user's goal.
+The script should be conversational, 4-6 sentences as instructions for the AI agent.
+Return only the script text, nothing else."""
+                },
+                {
+                    "role": "user",
+                    "content": f"Write a call script for this goal: {goal}"
+                }
+            ],
+            max_tokens=300,
+            temperature=0.7
+        )
+
+        script = response.choices[0].message.content.strip()
+        return jsonify({"script": script}), 200
+
+    except Exception as e:
+        print(f"ERROR in generate_script: {str(e)}")
+        return jsonify({"error": str(e)}), 500

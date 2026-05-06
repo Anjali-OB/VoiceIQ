@@ -28,3 +28,7 @@ export const getAllTranscripts = () => API.get('/api/transcripts/')
 
 export const aiRespond = (data) => API.post('/api/ai/respond', data)
 export const aiSummarize = (data) => API.post('/api/ai/summarize', data)
+
+export const generateScript = (data) => API.post('/api/ai/generate-script', data)
+
+export const updateContactTag = (id, group_name) => API.put(`/api/contacts/${id}/tag`, { group_name })
