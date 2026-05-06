@@ -356,6 +356,12 @@ export default function Campaigns() {
                     onClick={() => navigate(`/simulator/${c.id}`)}
                     className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-indigo-700"
                   >
+                    <button
+  onClick={() => navigate(`/report/${c.id}`)}
+  className="border border-green-500 text-green-600 px-3 py-1.5 rounded-lg text-xs hover:bg-green-50"
+>
+  📄 View report
+</button>
                     ▶ Start calls
                   </button>
                   <button

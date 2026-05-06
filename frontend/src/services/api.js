@@ -32,3 +32,5 @@ export const aiSummarize = (data) => API.post('/api/ai/summarize', data)
 export const generateScript = (data) => API.post('/api/ai/generate-script', data)
 
 export const updateContactTag = (id, group_name) => API.put(`/api/contacts/${id}/tag`, { group_name })
+
+export const getCampaignReport = (campaignId) => API.get(`/api/transcripts/report/${campaignId}`)

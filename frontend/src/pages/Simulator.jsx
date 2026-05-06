@@ -50,7 +50,7 @@ export default function Simulator() {
       ])
       const camp = campRes.data.find(c => c.id === campaignId)
       setCampaign(camp)
-      const pending = contactsRes.data.filter(c => c.status === 'pending')
+      const pending = contactsRes.data.filter(c => c.status === 'completed')
       setContacts(pending)
     } catch (err) {
       console.error('Failed to load data', err)
