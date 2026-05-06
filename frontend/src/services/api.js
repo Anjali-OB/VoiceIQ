@@ -38,3 +38,8 @@ export const getCampaignReport = (campaignId) => API.get(`/api/transcripts/repor
 export const getProfile = () => API.get('/api/auth/profile')
 export const updateProfile = (data) => API.put('/api/auth/profile', data)
 export const getStats = () => API.get('/api/auth/stats')
+
+export const detectEmotion = (data) => API.post('/api/ai/detect-emotion', data)
+export const adaptiveRespond = (data) => API.post('/api/ai/adaptive-respond', data)
+
+export const predictOutcomes = (data) => API.post('/api/ai/predict-outcomes', data)

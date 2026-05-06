@@ -8,6 +8,7 @@ import Simulator from './pages/Simulator'
 import ProtectedRoute from './components/ProtectedRoute'
 import Report from './pages/Report'
 import Settings from './pages/Settings'
+import Predictor from './pages/Predictor'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/simulator/:campaignId" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
         <Route path="/report/:campaignId" element={<ProtectedRoute><Report /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/predictor/:campaignId" element={<ProtectedRoute><Predictor /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

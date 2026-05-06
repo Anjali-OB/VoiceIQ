@@ -362,6 +362,12 @@ export default function Campaigns() {
 >
   📄 View report
 </button>
+                  <button
+  onClick={() => navigate(`/predictor/${c.id}`)}
+  className="border border-purple-400 text-purple-600 px-3 py-1.5 rounded-lg text-xs hover:bg-purple-50"
+>
+  🔮 Predict
+</button>
                     ▶ Start calls
                   </button>
                   <button
