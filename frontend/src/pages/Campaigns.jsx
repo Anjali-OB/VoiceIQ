@@ -22,9 +22,9 @@ export default function Campaigns() {
   const [showContacts, setShowContacts] = useState(null)
   const [contacts, setContacts] = useState([])
   const [form, setForm] = useState({
-    name: '', script: '', language: 'en-US',
-    scheduled_at: '', group_name: 'General'
-  })
+  name: '', script: '', language: 'en-US',
+  scheduled_at: '', group_name: 'General', voice_gender: 'female'
+})
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [goal, setGoal] = useState('')
@@ -58,11 +58,12 @@ export default function Campaigns() {
     setLoading(true)
     try {
       const payload = {
-        name: form.name,
-        script: form.script,
-        language: form.language,
-        scheduled_at: scheduleEnabled && form.scheduled_at ? form.scheduled_at : null
-      }
+  name: form.name,
+  script: form.script,
+  language: form.language,
+  voice_gender: form.voice_gender,
+  scheduled_at: scheduleEnabled && form.scheduled_at ? form.scheduled_at : null
+}
       await createCampaign(payload)
       setForm({ name: '', script: '', language: 'en-US', scheduled_at: '', group_name: 'General' })
       setShowForm(false)
@@ -195,6 +196,32 @@ export default function Campaigns() {
                 </div>
               </div>
 
+              {/* Voice Gender */}
+<div>
+  <label className="block text-sm text-gray-600 mb-1">AI caller voice</label>
+  <div className="flex gap-3">
+    {[
+      { value: 'female', label: '👩 Female voice', desc: 'Warm and friendly' },
+      { value: 'male', label: '👨 Male voice', desc: 'Deep and professional' }
+    ].map(v => (
+      <button
+        key={v.value}
+        type="button"
+        onClick={() => setForm({ ...form, voice_gender: v.value })}
+        className={`flex-1 py-3 px-3 rounded-xl text-sm border-2 transition-colors text-left ${
+          form.voice_gender === v.value
+            ? 'bg-indigo-600 text-white border-indigo-600'
+            : 'border-gray-200 text-gray-600 hover:border-indigo-300'
+        }`}
+      >
+        <div className="font-medium">{v.label}</div>
+        <div className={`text-xs mt-0.5 ${form.voice_gender === v.value ? 'text-indigo-200' : 'text-gray-400'}`}>
+          {v.desc}
+        </div>
+      </button>
+    ))}
+  </div>
+</div> 
               {/* Contact Group */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Default contact group</label>

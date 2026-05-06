@@ -317,3 +317,54 @@ Predict outcome for each contact."""
     except Exception as e:
         print(f"Prediction error: {str(e)}")
         return jsonify({"error": str(e), "predictions": []}), 500    
+    
+@ai_bp.route("/feedback-message", methods=["POST"])
+@jwt_required()
+def feedback_message():
+    try:
+        data = request.json
+        contact_name = data.get("contact_name", "Customer")
+        sentiment = data.get("sentiment", "neutral")
+        summary = data.get("summary", "")
+        language = data.get("language", "en-US")
+
+        lang_map = {
+            "hi-IN": "Write the message in Hindi.",
+            "mr-IN": "Write the message in Marathi.",
+            "en-US": "Write the message in English."
+        }
+        lang_instruction = lang_map.get(language, "Write the message in English.")
+
+        tone_map = {
+            "positive": "The customer was happy and satisfied. Write a warm thank you message.",
+            "negative": "The customer had issues. Write an empathetic apology with promise to improve.",
+            "neutral": "The customer was neutral. Write a professional follow-up message."
+        }
+        tone = tone_map.get(sentiment, tone_map["neutral"])
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"""You write short SMS/WhatsApp follow-up messages after a customer call.
+{lang_instruction}
+{tone}
+Keep it under 3 sentences. Be warm, professional and personalized.
+Return only the message text."""
+                },
+                {
+                    "role": "user",
+                    "content": f"Write follow-up message for {contact_name}. Call summary: {summary}"
+                }
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+
+        message = response.choices[0].message.content.strip()
+        return jsonify({"message": message}), 200
+
+    except Exception as e:
+        print(f"Feedback message error: {str(e)}")
+        return jsonify({"error": str(e)}), 500

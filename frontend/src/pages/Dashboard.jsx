@@ -60,19 +60,28 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-base font-medium text-gray-700 mb-4">Call sentiment breakdown</h2>
             {sentimentData.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">No calls yet</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={sentimentData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({name, value}) => `${name}: ${value}`}>
-                    {sentimentData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
+  <p className="text-sm text-gray-400 text-center py-8">No calls yet</p>
+) : (
+  <ResponsiveContainer width="100%" height={220}>
+    <PieChart>
+      <Pie
+        data={sentimentData}
+        cx="50%"
+        cy="50%"
+        innerRadius={50}
+        outerRadius={85}
+        paddingAngle={3}
+        dataKey="value"
+      >
+        {sentimentData.map((_, i) => (
+          <Cell key={i} fill={COLORS[i % COLORS.length]} />
+        ))}
+      </Pie>
+      <Tooltip formatter={(value, name) => [value, name]} />
+      <Legend />
+    </PieChart>
+  </ResponsiveContainer>
+)}
           </div>
 
           {/* Calls per campaign bar chart */}

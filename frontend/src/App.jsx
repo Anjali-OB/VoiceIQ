@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Report from './pages/Report'
 import Settings from './pages/Settings'
 import Predictor from './pages/Predictor'
+import ForgotPassword from './pages/ForgotPassword'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/report/:campaignId" element={<ProtectedRoute><Report /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/predictor/:campaignId" element={<ProtectedRoute><Predictor /></ProtectedRoute>} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
       </Routes>
     </BrowserRouter>
   )
