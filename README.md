@@ -108,4 +108,10 @@ Open Chrome → `http://localhost:5173`
 
 ---
 
-## 📁 Project Structure
+---
+
+## 👩‍💻 Developed by
+
+**Anjali** — SPPU Final Year Project 2026
+
+Built with ❤️ using React, Flask, and Groq AI

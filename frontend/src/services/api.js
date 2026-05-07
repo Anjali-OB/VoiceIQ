@@ -45,3 +45,7 @@ export const adaptiveRespond = (data) => API.post('/api/ai/adaptive-respond', da
 export const predictOutcomes = (data) => API.post('/api/ai/predict-outcomes', data)
 
 export const generateFeedbackMessage = (data) => API.post('/api/ai/feedback-message', data)
+export const trainModel = () => API.post('/api/ml/train')
+export const mlPredictSentiment = (data) => API.post('/api/ml/predict-sentiment', data)
+export const getMLStats = () => API.get('/api/ml/stats')
+export const analyzeWithML = (data) => API.post('/api/ml/analyze-campaign', data)

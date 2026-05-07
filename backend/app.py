@@ -14,12 +14,14 @@ from routes.campaigns import campaigns_bp
 from routes.contacts import contacts_bp
 from routes.transcripts import transcripts_bp
 from routes.ai import ai_bp
+from routes.ml import ml_bp
 
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
 app.register_blueprint(campaigns_bp, url_prefix="/api/campaigns")
 app.register_blueprint(contacts_bp, url_prefix="/api/contacts")
 app.register_blueprint(transcripts_bp, url_prefix="/api/transcripts")
 app.register_blueprint(ai_bp, url_prefix="/api/ai")
+app.register_blueprint(ml_bp, url_prefix="/api/ml")
 
 @app.route("/")
 def index():

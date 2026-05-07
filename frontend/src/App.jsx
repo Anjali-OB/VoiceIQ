@@ -10,6 +10,7 @@ import Report from './pages/Report'
 import Settings from './pages/Settings'
 import Predictor from './pages/Predictor'
 import ForgotPassword from './pages/ForgotPassword'
+import MLAnalytics from './pages/MLAnalytics'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/predictor/:campaignId" element={<ProtectedRoute><Predictor /></ProtectedRoute>} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/ml" element={<ProtectedRoute><MLAnalytics /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

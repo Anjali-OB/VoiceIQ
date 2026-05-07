@@ -15,6 +15,7 @@ export default function Navbar() {
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/campaigns', label: 'Campaigns' },
     { to: '/transcripts', label: 'Transcripts' },
+    { to: '/ml', label: '🤖 ML' },
   ]
 
   const isActive = (path) => location.pathname === path
