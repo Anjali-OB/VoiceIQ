@@ -5,7 +5,7 @@ import { getProfile, updateProfile, getStats } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
 export default function Settings() {
-  const { loginUser, user, logoutUser } = useAuth()
+  const { loginUser, user, logoutUser, darkMode, toggleDarkMode } = useAuth()
   const navigate = useNavigate()
   const [profile, setProfile] = useState({ name: '', email: '' })
   const [stats, setStats] = useState(null)
@@ -276,24 +276,20 @@ export default function Settings() {
                 <div className="space-y-4">
                   {[
                     { key: 'autoSummarize', label: '🤖 Auto-summarize calls', desc: 'Automatically generate AI summary after each call' },
-                    { key: 'darkMode', label: '🌙 Dark mode', desc: 'Coming soon — switch to dark theme' },
+                    { key: 'darkMode', label: '🌙 Dark mode', desc: 'Toggle dark/light theme', action: toggleDarkMode, value: darkMode },
                   ].map(pref => (
-                    <div key={pref.key} className="flex items-center justify-between py-3 border-b border-gray-100">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">{pref.label}</p>
-                        <p className="text-xs text-gray-400">{pref.desc}</p>
-                      </div>
-                      <button
-                        onClick={() => setPreferences(p => ({ ...p, [pref.key]: !p[pref.key] }))}
-                        className={`w-12 h-6 rounded-full transition-colors relative ${
-                          preferences[pref.key] ? 'bg-indigo-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow ${
-                          preferences[pref.key] ? 'left-6' : 'left-0.5'
-                        }`} />
-                      </button>
-                    </div>
+                    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+  <div>
+    <p className="text-sm font-medium text-gray-700">🌙 Dark mode</p>
+    <p className="text-xs text-gray-400">Toggle dark/light theme across the app</p>
+  </div>
+  <button
+    onClick={toggleDarkMode}
+    className={`w-12 h-6 rounded-full transition-colors relative ${darkMode ? 'bg-indigo-600' : 'bg-gray-300'}`}
+  >
+    <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow ${darkMode ? 'left-6' : 'left-0.5'}`} />
+  </button>
+</div>
                   ))}
                 </div>
 

@@ -1,3 +1,31 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 transition-colors duration-200;
+  }
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
+  }
+}
+
+/* Dark mode overrides */
+.dark .bg-white { background-color: #1e1e2e !important; }
+.dark .bg-gray-50 { background-color: #13131f !important; }
+.dark .bg-gray-100 { background-color: #2a2a3e !important; }
+.dark .bg-gray-200 { background-color: #3a3a50 !important; }
+.dark .border-gray-200 { border-color: #3a3a50 !important; }
+.dark .border-gray-300 { border-color: #4a4a60 !important; }
+.dark .text-gray-800 { color: #e2e8f0 !important; }
+.dark .text-gray-700 { color: #cbd5e1 !important; }
+.dark .text-gray-600 { color: #94a3b8 !important; }
+.dark .text-gray-500 { color: #64748b !important; }
+.dark .text-gray-400 { color: #475569 !important; }
+.dark input, .dark textarea, .dark select {
+  background-color: #2a2a3e !important;
+  color: #e2e8f0 !important;
+  border-color: #4a4a60 !important;
+}
+.dark .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important; }
