@@ -8,6 +8,7 @@ from ml.rf_success_model import (
     train_rf_model, predict_success,
     predict_batch_success, get_rf_stats
 )
+from ml.nlp_extractor import full_nlp_analysis
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from ml.sentiment_model import (
@@ -343,6 +344,33 @@ def rf_campaign_analysis():
 
     except Exception as e:
         print(f"RF campaign analysis error: {str(e)}")
-        return jsonify({"error": str(e)}), 500    
+        return jsonify({"error": str(e)}), 500  
+
+@ml_bp.route("/nlp/analyze", methods=["POST"])
+@jwt_required()
+def nlp_analyze():
+    try:
+        data = request.json
+        campaign_id = data.get("campaign_id")
+
+        if not campaign_id:
+            return jsonify({"error": "campaign_id required"}), 400
+
+        # Fetch transcripts with conversation data
+        transcripts = supabase.table("transcripts")\
+            .select("conversation, sentiment, contacts(name, phone)")\
+            .eq("campaign_id", campaign_id)\
+            .execute()
+
+        if not transcripts.data:
+            return jsonify({"error": "No transcripts found for this campaign"}), 404
+
+        print(f"Running NLP on {len(transcripts.data)} transcripts...")
+        result = full_nlp_analysis(transcripts.data)
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(f"NLP analysis error: {str(e)}")
+        return jsonify({"error": str(e)}), 500      
     
     

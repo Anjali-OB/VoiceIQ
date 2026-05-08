@@ -13,6 +13,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import MLAnalytics from './pages/MLAnalytics'
 import Recordings from './pages/Recordings'
 import RFPredictor from './pages/RFPredictor'
+import NLPAnalytics from './pages/NLPAnalytics'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/ml" element={<ProtectedRoute><MLAnalytics /></ProtectedRoute>} />
         <Route path="/recordings" element={<ProtectedRoute><Recordings /></ProtectedRoute>} />
         <Route path="/rf-predictor" element={<ProtectedRoute><RFPredictor /></ProtectedRoute>} />
+        <Route path="/nlp" element={<ProtectedRoute><NLPAnalytics /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

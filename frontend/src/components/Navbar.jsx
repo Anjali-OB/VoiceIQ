@@ -18,6 +18,7 @@ export default function Navbar() {
   { to: '/recordings', label: '🎙️ Recordings' },
   { to: '/ml', label: '🤖 ML' },
   { to: '/rf-predictor', label: '🌲 RF Model' },
+  { to: '/nlp', label: '📝 NLP' },
 ]
 
   const isActive = (path) => location.pathname === path
