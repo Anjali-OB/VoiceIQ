@@ -12,11 +12,13 @@ export default function Navbar() {
   }
 
   const navLinks = [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/campaigns', label: 'Campaigns' },
-    { to: '/transcripts', label: 'Transcripts' },
-    { to: '/ml', label: '🤖 ML' },
-  ]
+  { to: '/dashboard', label: 'Dashboard' },
+  { to: '/campaigns', label: 'Campaigns' },
+  { to: '/transcripts', label: 'Transcripts' },
+  { to: '/recordings', label: '🎙️ Recordings' },
+  { to: '/ml', label: '🤖 ML' },
+  { to: '/rf-predictor', label: '🌲 RF Model' },
+]
 
   const isActive = (path) => location.pathname === path
 

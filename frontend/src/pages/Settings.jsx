@@ -7,31 +7,51 @@ import { useAuth } from '../context/AuthContext'
 export default function Settings() {
   const { loginUser, user, logoutUser, darkMode, toggleDarkMode } = useAuth()
   const navigate = useNavigate()
-  const [profile, setProfile] = useState({ name: '', email: '' })
+
+  const [profile, setProfile] = useState({ name: '', email: '', created_at: '' })
   const [stats, setStats] = useState(null)
   const [form, setForm] = useState({ name: '', password: '', confirmPassword: '' })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ text: '', type: '' })
   const [activeTab, setActiveTab] = useState('profile')
-  const [notifications, setNotifications] = useState({
-    emailAlerts: true,
-    campaignComplete: true,
-    weeklyReport: false,
-    sentimentAlerts: true
+  const [prefSaved, setPrefSaved] = useState(false)
+  const [notifSaved, setNotifSaved] = useState(false)
+
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem('voiceiq_notifications')
+      return saved ? JSON.parse(saved) : {
+        emailAlerts: true,
+        campaignComplete: true,
+        weeklyReport: false,
+        sentimentAlerts: true
+      }
+    } catch { return { emailAlerts: true, campaignComplete: true, weeklyReport: false, sentimentAlerts: true } }
   })
-  const [preferences, setPreferences] = useState({
-    defaultLanguage: 'en-US',
-    defaultVoice: 'female',
-    autoSummarize: true,
-    darkMode: false
+
+  const [preferences, setPreferences] = useState(() => {
+    try {
+      const saved = localStorage.getItem('voiceiq_preferences')
+      return saved ? JSON.parse(saved) : {
+        defaultLanguage: 'en-US',
+        defaultVoice: 'female',
+        autoSummarize: true,
+        showEmotionTimeline: true
+      }
+    } catch { return { defaultLanguage: 'en-US', defaultVoice: 'female', autoSummarize: true, showEmotionTimeline: true } }
   })
 
   useEffect(() => {
-    getProfile().then(r => {
-      setProfile(r.data)
-      setForm(prev => ({ ...prev, name: r.data.name }))
-    }).catch(() => {})
-    getStats().then(r => setStats(r.data)).catch(() => {})
+    getProfile()
+      .then(r => {
+        setProfile(r.data)
+        setForm(prev => ({ ...prev, name: r.data.name || '' }))
+      })
+      .catch(() => {})
+
+    getStats()
+      .then(r => setStats(r.data))
+      .catch(() => {})
   }, [])
 
   const handleUpdate = async (e) => {
@@ -61,17 +81,29 @@ export default function Settings() {
     }
   }
 
+  const handleSavePreferences = () => {
+    localStorage.setItem('voiceiq_preferences', JSON.stringify(preferences))
+    setPrefSaved(true)
+    setTimeout(() => setPrefSaved(false), 2500)
+  }
+
+  const handleSaveNotifications = () => {
+    localStorage.setItem('voiceiq_notifications', JSON.stringify(notifications))
+    setNotifSaved(true)
+    setTimeout(() => setNotifSaved(false), 2500)
+  }
+
   const handleLogout = () => {
     logoutUser()
     navigate('/login')
   }
 
   const tabs = [
-    { id: 'profile', label: '👤 Profile', icon: '👤' },
-    { id: 'preferences', label: '⚙️ Preferences', icon: '⚙️' },
-    { id: 'notifications', label: '🔔 Notifications', icon: '🔔' },
-    { id: 'stats', label: '📊 My Stats', icon: '📊' },
-    { id: 'about', label: 'ℹ️ About', icon: 'ℹ️' },
+    { id: 'profile', label: 'Profile', icon: '👤' },
+    { id: 'preferences', label: 'Preferences', icon: '⚙️' },
+    { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    { id: 'stats', label: 'My Stats', icon: '📊' },
+    { id: 'about', label: 'About', icon: 'ℹ️' },
   ]
 
   return (
@@ -82,10 +114,11 @@ export default function Settings() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-800">Settings</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage your account and app preferences</p>
+            <h1 className="text-2xl font-bold text-gray-800">Settings</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage your account and preferences</p>
           </div>
-          <Link to="/dashboard"
+          <Link
+            to="/dashboard"
             className="text-sm text-indigo-600 border border-indigo-300 px-4 py-2 rounded-xl hover:bg-indigo-50 flex items-center gap-2"
           >
             🏠 Back to home
@@ -94,61 +127,66 @@ export default function Settings() {
 
         <div className="flex gap-6">
 
-          {/* Sidebar tabs */}
-          <div className="w-48 shrink-0">
-            <div className="bg-white rounded-xl border border-gray-200 p-2 space-y-1">
+          {/* Sidebar */}
+          <div className="w-52 shrink-0">
+            <div className="bg-white rounded-2xl border border-gray-200 p-2 space-y-1">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
+                  className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2 ${
                     activeTab === tab.id
-                      ? 'bg-indigo-600 text-white font-medium'
+                      ? 'bg-indigo-600 text-white font-semibold'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  {tab.icon} {tab.id.charAt(0).toUpperCase() + tab.id.slice(1)}
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
                 </button>
               ))}
-
               <div className="pt-2 mt-2 border-t border-gray-100">
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-red-500 hover:bg-red-50 flex items-center gap-2"
+                  className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 flex items-center gap-2"
                 >
-                  🚪 Logout
+                  <span>🚪</span>
+                  <span>Sign out</span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Content area */}
-          <div className="flex-1 space-y-4">
+          {/* Content */}
+          <div className="flex-1 space-y-4 min-w-0">
 
-            {/* Profile Tab */}
+            {/* ── PROFILE TAB ── */}
             {activeTab === 'profile' && (
               <>
                 {/* Avatar card */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6 flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-md">
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-md shrink-0">
                     {profile.name?.charAt(0)?.toUpperCase() || 'U'}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800 text-lg">{profile.name}</p>
+                    <p className="font-bold text-gray-800 text-lg">{profile.name || 'User'}</p>
                     <p className="text-sm text-gray-500">{profile.email}</p>
                     <p className="text-xs text-gray-400 mt-1">
-                      Member since {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
+                      Member since {profile.created_at
+                        ? new Date(profile.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long' })
+                        : 'N/A'}
                     </p>
                   </div>
                 </div>
 
                 {/* Edit form */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
                   <h2 className="text-base font-semibold text-gray-700 mb-5">Edit profile</h2>
 
                   {message.text && (
                     <div className={`mb-4 px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${
-                      message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'
+                      message.type === 'success'
+                        ? 'bg-green-50 text-green-700 border border-green-200'
+                        : 'bg-red-50 text-red-600 border border-red-200'
                     }`}>
                       {message.text}
                     </div>
@@ -162,16 +200,18 @@ export default function Settings() {
                         className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         value={form.name}
                         onChange={e => setForm({ ...form, name: e.target.value })}
+                        placeholder="Your full name"
                       />
                     </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Email address</label>
                       <input
                         type="email" disabled
                         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 text-gray-400 cursor-not-allowed"
-                        value={profile.email}
+                        value={profile.email || ''}
                       />
-                      <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+                      <p className="text-xs text-gray-400 mt-1">Email address cannot be changed</p>
                     </div>
 
                     <div className="border-t border-gray-100 pt-4">
@@ -184,7 +224,7 @@ export default function Settings() {
                             className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             value={form.password}
                             onChange={e => setForm({ ...form, password: e.target.value })}
-                            placeholder="Leave blank to keep current"
+                            placeholder="Leave blank to keep current password"
                           />
                         </div>
                         <div>
@@ -202,20 +242,22 @@ export default function Settings() {
 
                     <button
                       type="submit" disabled={loading}
-                      className="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                      className="w-full bg-indigo-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                     >
-                      {loading ? 'Saving...' : 'Save changes'}
+                      {loading ? 'Saving changes...' : 'Save changes'}
                     </button>
                   </form>
                 </div>
 
                 {/* Danger zone */}
-                <div className="bg-white rounded-xl border border-red-200 p-6">
+                <div className="bg-white rounded-2xl border border-red-200 p-6">
                   <h2 className="text-base font-semibold text-red-600 mb-2">⚠️ Danger zone</h2>
-                  <p className="text-sm text-gray-500 mb-4">These actions are irreversible. Please be careful.</p>
+                  <p className="text-sm text-gray-500 mb-4">
+                    This will sign you out from all active sessions.
+                  </p>
                   <button
                     onClick={handleLogout}
-                    className="border border-red-300 text-red-600 px-4 py-2 rounded-xl text-sm hover:bg-red-50"
+                    className="border border-red-300 text-red-600 px-5 py-2 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors"
                   >
                     🚪 Sign out of all devices
                   </button>
@@ -223,10 +265,23 @@ export default function Settings() {
               </>
             )}
 
-            {/* Preferences Tab */}
+            {/* ── PREFERENCES TAB ── */}
             {activeTab === 'preferences' && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
                 <h2 className="text-base font-semibold text-gray-700">App Preferences</h2>
+
+                {/* Dark mode — show status, toggle is in navbar */}
+                <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">🌙 Dark mode</p>
+                    <p className="text-xs text-gray-400">Use the moon icon in the top navbar to toggle</p>
+                  </div>
+                  <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                    darkMode ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {darkMode ? '🌙 On' : '☀️ Off'}
+                  </span>
+                </div>
 
                 {/* Default language */}
                 <div>
@@ -239,7 +294,7 @@ export default function Settings() {
                     ].map(lang => (
                       <button key={lang.code}
                         onClick={() => setPreferences(p => ({ ...p, defaultLanguage: lang.code }))}
-                        className={`flex-1 py-2 px-3 rounded-xl text-sm border-2 transition-colors ${
+                        className={`flex-1 py-2.5 px-3 rounded-xl text-sm border-2 transition-colors ${
                           preferences.defaultLanguage === lang.code
                             ? 'bg-indigo-600 text-white border-indigo-600'
                             : 'border-gray-200 text-gray-600 hover:border-indigo-300'
@@ -251,7 +306,7 @@ export default function Settings() {
 
                 {/* Default voice */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">🎙️ Default AI voice</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">🎙️ Default AI voice gender</label>
                   <div className="flex gap-3">
                     {[
                       { value: 'female', label: '👩 Female', desc: 'Warm & friendly' },
@@ -265,197 +320,239 @@ export default function Settings() {
                             : 'border-gray-200 text-gray-600 hover:border-indigo-300'
                         }`}
                       >
-                        <div className="font-medium">{v.label}</div>
-                        <div className={`text-xs mt-0.5 ${preferences.defaultVoice === v.value ? 'text-indigo-200' : 'text-gray-400'}`}>{v.desc}</div>
+                        <div className="font-semibold">{v.label}</div>
+                        <div className={`text-xs mt-0.5 ${preferences.defaultVoice === v.value ? 'text-indigo-200' : 'text-gray-400'}`}>
+                          {v.desc}
+                        </div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Toggle preferences */}
-                <div className="space-y-4">
+                <div className="space-y-1">
                   {[
-                    { key: 'autoSummarize', label: '🤖 Auto-summarize calls', desc: 'Automatically generate AI summary after each call' },
-                    { key: 'darkMode', label: '🌙 Dark mode', desc: 'Toggle dark/light theme', action: toggleDarkMode, value: darkMode },
+                    { key: 'autoSummarize', label: '🤖 Auto-summarize calls', desc: 'Automatically generate AI summary after each call ends' },
+                    { key: 'showEmotionTimeline', label: '📊 Show emotion timeline', desc: 'Display real-time emotion graph during call simulation' },
                   ].map(pref => (
-                    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-  <div>
-    <p className="text-sm font-medium text-gray-700">🌙 Dark mode</p>
-    <p className="text-xs text-gray-400">Toggle dark/light theme across the app</p>
-  </div>
-  <button
-    onClick={toggleDarkMode}
-    className={`w-12 h-6 rounded-full transition-colors relative ${darkMode ? 'bg-indigo-600' : 'bg-gray-300'}`}
-  >
-    <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow ${darkMode ? 'left-6' : 'left-0.5'}`} />
-  </button>
-</div>
+                    <div key={pref.key} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">{pref.label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{pref.desc}</p>
+                      </div>
+                      <button
+                        onClick={() => setPreferences(p => ({ ...p, [pref.key]: !p[pref.key] }))}
+                        className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${
+                          preferences[pref.key] ? 'bg-indigo-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${
+                          preferences[pref.key] ? 'left-6' : 'left-0.5'
+                        }`} />
+                      </button>
+                    </div>
                   ))}
                 </div>
 
-                <button className="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700">
-                  Save preferences
+                <button
+                  onClick={handleSavePreferences}
+                  className={`w-full py-3 rounded-xl text-sm font-semibold transition-colors ${
+                    prefSaved
+                      ? 'bg-green-500 text-white'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  {prefSaved ? '✅ Preferences saved!' : 'Save preferences'}
                 </button>
               </div>
             )}
 
-            {/* Notifications Tab */}
+            {/* ── NOTIFICATIONS TAB ── */}
             {activeTab === 'notifications' && (
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-700 mb-5">🔔 Notification Settings</h2>
-                <div className="space-y-4">
+                <div className="space-y-1">
                   {[
-                    { key: 'emailAlerts', label: 'Email alerts', desc: 'Receive email when campaigns complete' },
-                    { key: 'campaignComplete', label: 'Campaign completion', desc: 'Notify when all calls in a campaign finish' },
-                    { key: 'weeklyReport', label: 'Weekly report', desc: 'Get weekly summary of your campaigns' },
-                    { key: 'sentimentAlerts', label: 'Negative sentiment alerts', desc: 'Alert when calls have negative sentiment' },
+                    { key: 'emailAlerts', label: '📧 Email alerts', desc: 'Receive email when important events happen' },
+                    { key: 'campaignComplete', label: '✅ Campaign completion', desc: 'Notify when all calls in a campaign finish' },
+                    { key: 'weeklyReport', label: '📊 Weekly report', desc: 'Get a weekly summary of all your campaigns' },
+                    { key: 'sentimentAlerts', label: '😠 Negative sentiment alerts', desc: 'Alert when a call ends with negative sentiment' },
                   ].map(notif => (
                     <div key={notif.key} className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
-                      <div>
+                      <div className="flex-1 pr-4">
                         <p className="text-sm font-medium text-gray-700">{notif.label}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{notif.desc}</p>
                       </div>
                       <button
                         onClick={() => setNotifications(n => ({ ...n, [notif.key]: !n[notif.key] }))}
-                        className={`w-12 h-6 rounded-full transition-colors relative ${
+                        className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${
                           notifications[notif.key] ? 'bg-indigo-600' : 'bg-gray-300'
                         }`}
                       >
-                        <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow ${
+                        <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${
                           notifications[notif.key] ? 'left-6' : 'left-0.5'
                         }`} />
                       </button>
                     </div>
                   ))}
                 </div>
-                <button className="mt-4 w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700">
-                  Save notification settings
+                <button
+                  onClick={handleSaveNotifications}
+                  className={`mt-5 w-full py-3 rounded-xl text-sm font-semibold transition-colors ${
+                    notifSaved
+                      ? 'bg-green-500 text-white'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  {notifSaved ? '✅ Notification settings saved!' : 'Save notification settings'}
                 </button>
               </div>
             )}
 
-            {/* Stats Tab */}
+            {/* ── STATS TAB ── */}
             {activeTab === 'stats' && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {stats ? [
-                    { label: 'Total campaigns', value: stats.total_campaigns, icon: '📢', color: 'text-indigo-600' },
-                    { label: 'Total contacts', value: stats.total_contacts, icon: '👥', color: 'text-blue-600' },
-                    { label: 'Calls made', value: stats.total_calls, icon: '📞', color: 'text-green-600' },
-                    { label: 'Completed campaigns', value: stats.completed_campaigns, icon: '✅', color: 'text-emerald-600' },
-                  ].map(s => (
-                    <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-5">
-                      <div className="text-3xl mb-2">{s.icon}</div>
-                      <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
-                      <p className="text-sm text-gray-500 mt-1">{s.label}</p>
-                    </div>
-                  )) : (
-                    <div className="col-span-2 bg-white rounded-xl border border-gray-200 p-8 text-center">
-                      <p className="text-gray-400">Loading stats...</p>
-                    </div>
-                  )}
-                </div>
-
-                {stats && (
-                  <div className="bg-white rounded-xl border border-gray-200 p-6">
-                    <h2 className="text-base font-semibold text-gray-700 mb-4">Usage overview</h2>
-                    <div className="space-y-4">
+                {stats ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
                       {[
-                        { label: 'Campaigns', value: stats.total_campaigns, max: 20, color: 'bg-indigo-500' },
-                        { label: 'Calls completed', value: stats.total_calls, max: 100, color: 'bg-green-500' },
-                        { label: 'Contacts managed', value: stats.total_contacts, max: 200, color: 'bg-blue-500' },
-                      ].map(item => (
-                        <div key={item.label}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-gray-600">{item.label}</span>
-                            <span className="font-medium text-gray-800">{item.value}</span>
+                        { label: 'Total campaigns', value: stats.total_campaigns, icon: '📢', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                        { label: 'Total contacts', value: stats.total_contacts, icon: '👥', color: 'text-blue-600', bg: 'bg-blue-50' },
+                        { label: 'Calls made', value: stats.total_calls, icon: '📞', color: 'text-green-600', bg: 'bg-green-50' },
+                        { label: 'Completed', value: stats.completed_campaigns, icon: '✅', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                      ].map(s => (
+                        <div key={s.label} className="bg-white rounded-2xl border border-gray-200 p-5">
+                          <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center text-xl mb-3`}>
+                            {s.icon}
                           </div>
-                          <div className="w-full bg-gray-100 rounded-full h-2.5">
-                            <div
-                              className={`h-2.5 rounded-full ${item.color}`}
-                              style={{ width: `${Math.min((item.value / item.max) * 100, 100)}%` }}
-                            />
-                          </div>
+                          <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
+                          <p className="text-sm text-gray-500 mt-1">{s.label}</p>
                         </div>
                       ))}
                     </div>
+
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                      <h2 className="text-base font-semibold text-gray-700 mb-4">Usage overview</h2>
+                      <div className="space-y-4">
+                        {[
+                          { label: 'Campaigns used', value: stats.total_campaigns, max: 20, color: 'bg-indigo-500' },
+                          { label: 'Calls completed', value: stats.total_calls, max: 100, color: 'bg-green-500' },
+                          { label: 'Contacts managed', value: stats.total_contacts, max: 200, color: 'bg-blue-500' },
+                        ].map(item => (
+                          <div key={item.label}>
+                            <div className="flex justify-between text-sm mb-1.5">
+                              <span className="text-gray-600">{item.label}</span>
+                              <span className="font-semibold text-gray-800">{item.value}</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-2.5">
+                              <div
+                                className={`h-2.5 rounded-full ${item.color} transition-all duration-500`}
+                                style={{ width: `${Math.min((item.value / item.max) * 100, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+                    <p className="text-gray-400">Loading stats...</p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* About Tab */}
+            {/* ── ABOUT TAB ── */}
             {activeTab === 'about' && (
               <div className="space-y-4">
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
+
+                {/* App info */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow">
+                    <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md">
                       V
                     </div>
                     <div>
                       <h2 className="font-bold text-gray-800 text-xl">VoiceIQ</h2>
                       <p className="text-sm text-gray-500">AI Bulk Call Simulator v1.0</p>
-                      <p className="text-xs text-indigo-600 mt-0.5">Built for SPPU submission</p>
+                      <p className="text-xs text-indigo-600 mt-0.5 font-medium">SPPU Final Year Project 2026</p>
                     </div>
                   </div>
                   <p className="text-sm text-gray-600 leading-relaxed">
-                    VoiceIQ is an AI-powered bulk call simulation system that automates outbound calling campaigns with emotionally intelligent conversations, real-time sentiment analysis, and outcome prediction.
+                    VoiceIQ is an AI-powered intelligent bulk call simulation and analytics web application.
+                    It automates outbound calling campaigns with emotionally intelligent conversations,
+                    real-time sentiment analysis, outcome prediction, and call recording — all running
+                    completely free in the browser.
                   </p>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                {/* Tech stack */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
                   <h2 className="text-base font-semibold text-gray-700 mb-4">🛠️ Tech stack</h2>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { icon: '⚛️', label: 'Frontend', value: 'React + Vite + Tailwind' },
+                      { icon: '⚛️', label: 'Frontend', value: 'React 18 + Vite + Tailwind CSS' },
                       { icon: '🐍', label: 'Backend', value: 'Python Flask REST API' },
                       { icon: '🤖', label: 'AI Engine', value: 'Groq LLaMA 3.3 70B' },
-                      { icon: '🎤', label: 'Voice', value: 'Web Speech API' },
+                      { icon: '🎤', label: 'Voice', value: 'Web Speech API (TTS + STT)' },
+                      { icon: '🧠', label: 'ML Model', value: 'scikit-learn + TF-IDF' },
                       { icon: '🗄️', label: 'Database', value: 'Supabase PostgreSQL' },
-                      { icon: '🔐', label: 'Auth', value: 'JWT Extended' },
-                      { icon: '🚀', label: 'Deploy', value: 'Vercel + Render' },
-                      { icon: '🐳', label: 'DevOps', value: 'Docker + GitHub Actions' },
+                      { icon: '🔐', label: 'Auth', value: 'JWT (Flask-JWT-Extended)' },
+                      { icon: '🚀', label: 'Deploy', value: 'Vercel + Render + Docker' },
                     ].map(item => (
-                      <div key={item.label} className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg p-2">
-                        <span>{item.icon}</span>
+                      <div key={item.label} className="flex items-start gap-2 bg-gray-50 rounded-xl p-3">
+                        <span className="text-lg shrink-0">{item.icon}</span>
                         <div>
                           <p className="text-xs text-gray-400">{item.label}</p>
-                          <p className="font-medium text-gray-700 text-xs">{item.value}</p>
+                          <p className="text-xs font-semibold text-gray-700">{item.value}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h2 className="text-base font-semibold text-gray-700 mb-4">✅ All 14 modules</h2>
-                  <div className="grid grid-cols-1 gap-2">
+                {/* All 16 modules */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                  <h2 className="text-base font-semibold text-gray-700 mb-4">✅ All 16 modules</h2>
+                  <div className="space-y-1">
                     {[
                       'User Authentication (JWT)',
-                      'Contact Management (CSV/Excel)',
-                      'Campaign Engine',
+                      'Contact Management (CSV/Excel Upload)',
+                      'Campaign Engine (Create, Schedule, Manage)',
                       'AI Call Simulator (Web Speech API)',
                       'Transcript Storage & Retrieval',
-                      'Analytics Dashboard',
-                      'AI Script Builder (Groq)',
-                      'Call Scheduling',
+                      'Analytics Dashboard (Charts & Stats)',
+                      'AI Script Builder (Groq LLM)',
+                      'Call Scheduling (Date & Time)',
                       'Contact Groups & Tagging',
                       'Post-Call Campaign Report (PDF)',
-                      'Multi-language Support',
+                      'Multi-language Support (EN/HI/MR)',
                       'Settings & Profile Management',
                       '🧠 Emotion-Adaptive AI Caller',
                       '🔮 AI Call Outcome Predictor',
+                      '🤖 ML Sentiment Analysis (scikit-learn)',
+                      '🎙️ Call Recording & Playback',
                     ].map((mod, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm py-1.5 border-b border-gray-50 last:border-0">
-                        <span className="text-green-500 font-bold text-xs">{i + 1}.</span>
-                        <span className="text-gray-700">{mod}</span>
-                        <span className="ml-auto text-green-500 text-xs">✅</span>
+                      <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0 text-sm">
+                        <span className="text-indigo-400 font-bold text-xs w-6 shrink-0">{i + 1}.</span>
+                        <span className="text-gray-700 flex-1">{mod}</span>
+                        <span className="text-green-500 text-xs shrink-0">✅</span>
                       </div>
                     ))}
                   </div>
                 </div>
+
+                {/* Developer info */}
+                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-200 p-6 text-center">
+                  <p className="text-sm text-gray-600 mb-1">Developed by</p>
+                  <p className="text-lg font-bold text-indigo-700">Anjali</p>
+                  <p className="text-xs text-gray-500 mt-1">SPPU Final Year Project · 2026</p>
+                  <p className="text-xs text-gray-400 mt-2">Built with ❤️ using React, Flask, and Groq AI</p>
+                </div>
               </div>
             )}
+
           </div>
         </div>
       </div>

@@ -4,6 +4,10 @@ from supabase import create_client
 from config import Config
 import sys
 import os
+from ml.rf_success_model import (
+    train_rf_model, predict_success,
+    predict_batch_success, get_rf_stats
+)
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from ml.sentiment_model import (
@@ -179,3 +183,166 @@ def analyze_campaign():
     except Exception as e:
         print(f"Campaign analysis error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+@ml_bp.route("/rf/train", methods=["POST"])
+@jwt_required()
+def train_rf():
+    try:
+        user_id = get_jwt_identity()
+        real_data = []
+
+        try:
+            campaigns = supabase.table("campaigns")\
+                .select("id, script, language, created_at")\
+                .eq("user_id", user_id).execute()
+
+            if campaigns.data:
+                campaign_map = {c["id"]: c for c in campaigns.data}
+                campaign_ids = list(campaign_map.keys())
+
+                transcripts = supabase.table("transcripts")\
+                    .select("*, contacts(name, phone, group_name)")\
+                    .in_("campaign_id", campaign_ids).execute()
+
+                for t in transcripts.data:
+                    camp = campaign_map.get(t["campaign_id"], {})
+                    contact = t.get("contacts") or {}
+                    sentiment = t.get("sentiment", "neutral")
+                    label = 1 if sentiment == "positive" else 0
+
+                    real_data.append({
+                        "name": contact.get("name", ""),
+                        "phone": contact.get("phone", ""),
+                        "group_name": contact.get("group_name", "General"),
+                        "language": camp.get("language", "en-US"),
+                        "script": camp.get("script", ""),
+                        "created_at": camp.get("created_at", ""),
+                        "past_success_rate": 0.5,
+                        "label": label
+                    })
+
+                print(f"Found {len(real_data)} real samples for RF training")
+        except Exception as e:
+            print(f"Could not fetch real data: {e}")
+
+        stats = train_rf_model(real_data if real_data else None)
+        return jsonify(stats), 200
+
+    except Exception as e:
+        print(f"RF Training error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/rf/stats", methods=["GET"])
+@jwt_required()
+def rf_stats():
+    try:
+        result = get_rf_stats()
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/rf/predict", methods=["POST"])
+@jwt_required()
+def rf_predict():
+    try:
+        data = request.json
+        result = predict_success(data)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/rf/predict-batch", methods=["POST"])
+@jwt_required()
+def rf_predict_batch():
+    try:
+        data = request.json
+        contacts = data.get("contacts", [])
+        campaign = data.get("campaign", {})
+
+        # Enrich contacts with campaign data
+        for c in contacts:
+            c["language"] = campaign.get("language", "en-US")
+            c["script"] = campaign.get("script", "")
+            c["created_at"] = campaign.get("created_at", "")
+
+            # Calculate past success rate from existing transcripts
+            c["past_success_rate"] = 0.5  # default
+
+        results = predict_batch_success(contacts)
+        return jsonify({"predictions": results, "total": len(results)}), 200
+
+    except Exception as e:
+        print(f"RF batch predict error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/rf/campaign-analysis", methods=["POST"])
+@jwt_required()
+def rf_campaign_analysis():
+    try:
+        data = request.json
+        campaign_id = data.get("campaign_id")
+
+        campaign = supabase.table("campaigns")\
+            .select("*").eq("id", campaign_id).execute()
+        contacts = supabase.table("contacts")\
+            .select("*").eq("campaign_id", campaign_id).execute()
+        transcripts = supabase.table("transcripts")\
+            .select("contact_id, sentiment")\
+            .eq("campaign_id", campaign_id).execute()
+
+        if not campaign.data:
+            return jsonify({"error": "Campaign not found"}), 404
+
+        camp_data = campaign.data[0]
+
+        # Build actual outcome map
+        actual_outcomes = {}
+        for t in transcripts.data:
+            actual_outcomes[t["contact_id"]] = 1 if t["sentiment"] == "positive" else 0
+
+        total_positive = sum(actual_outcomes.values())
+        actual_success_rate = total_positive / len(actual_outcomes) if actual_outcomes else 0
+
+        # Predict for all contacts
+        contact_list = []
+        for c in contacts.data:
+            c["language"] = camp_data.get("language", "en-US")
+            c["script"] = camp_data.get("script", "")
+            c["created_at"] = camp_data.get("created_at", "")
+            c["past_success_rate"] = actual_success_rate
+            contact_list.append(c)
+
+        predictions = predict_batch_success(contact_list)
+
+        # Calculate prediction accuracy for completed contacts
+        correct = 0
+        total_compared = 0
+        for pred in predictions:
+            contact_id = pred["id"]
+            if contact_id in actual_outcomes:
+                actual = actual_outcomes[contact_id]
+                predicted = 1 if pred["score"] >= 50 else 0
+                if actual == predicted:
+                    correct += 1
+                total_compared += 1
+
+        prediction_accuracy = round((correct / total_compared * 100) if total_compared > 0 else 0, 1)
+
+        return jsonify({
+            "predictions": predictions,
+            "campaign": camp_data,
+            "actual_success_rate": round(actual_success_rate * 100, 1),
+            "prediction_accuracy": prediction_accuracy,
+            "total_contacts": len(contacts.data),
+            "total_with_outcomes": len(actual_outcomes)
+        }), 200
+
+    except Exception as e:
+        print(f"RF campaign analysis error: {str(e)}")
+        return jsonify({"error": str(e)}), 500    
+    
+    

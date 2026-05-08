@@ -16,12 +16,26 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
 
 try:
+    import nltk
     nltk.download('stopwords', quiet=True)
     nltk.download('punkt', quiet=True)
     from nltk.corpus import stopwords
     STOPWORDS = set(stopwords.words('english'))
-except:
-    STOPWORDS = set()
+except Exception:
+    # NLTK not available offline — use manual stopwords
+    STOPWORDS = {
+        'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves',
+        'you', 'your', 'yours', 'yourself', 'he', 'him', 'his',
+        'she', 'her', 'hers', 'it', 'its', 'they', 'them', 'their',
+        'what', 'which', 'who', 'this', 'that', 'these', 'those',
+        'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+        'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+        'could', 'should', 'may', 'might', 'shall', 'can',
+        'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because',
+        'as', 'of', 'at', 'by', 'for', 'with', 'about', 'to',
+        'from', 'in', 'out', 'on', 'off', 'then', 'so', 'than',
+        'too', 'very', 's', 't', 'just', 'not', 'no'
+    }
 
 MODEL_DIR = os.path.dirname(__file__)
 MODEL_PATH = os.path.join(MODEL_DIR, 'sentiment_model.pkl')
