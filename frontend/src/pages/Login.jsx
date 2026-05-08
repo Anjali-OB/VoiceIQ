@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { login } from '../services/api'
 import { useAuth } from '../context/AuthContext'
-
+import { GoogleLogin } from '@react-oauth/google'
+import axios from 'axios'
+const API = axios.create({ baseURL: import.meta.env.VITE_API_URL })
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
@@ -125,6 +127,32 @@ export default function Login() {
           </div>
         </div>
       </div>
+      <div className="relative my-6">
+  <div className="absolute inset-0 flex items-center">
+    <div className="w-full border-t border-gray-200" />
+  </div>
+  <div className="relative flex justify-center">
+    <span className="bg-white px-4 text-xs text-gray-400">or continue with</span>
+  </div>
+</div>
+
+<GoogleLogin
+  onSuccess={async (credentialResponse) => {
+    try {
+      const res = await API.post('/api/auth/google', {
+        token: credentialResponse.credential
+      })
+      loginUser(res.data.user, res.data.token)
+      navigate('/dashboard')
+    } catch (err) {
+      setError('Google login failed. Try again.')
+    }
+  }}
+  onError={() => setError('Google login failed')}
+  width="100%"
+  text="continue_with"
+  shape="rectangular"
+/>
     </div>
   )
 }

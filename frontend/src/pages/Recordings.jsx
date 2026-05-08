@@ -16,11 +16,14 @@ export default function Recordings() {
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    API.get('/api/recordings/all')
-      .then(r => setRecordings(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  try {
+    const saved = JSON.parse(localStorage.getItem('voiceiq_recordings') || '[]')
+    setRecordings(saved.reverse())
+  } catch (e) {
+    setRecordings([])
+  }
+  setLoading(false)
+}, [])
 
   const filtered = recordings.filter(r => {
     const name = r.contacts?.name?.toLowerCase() || ''

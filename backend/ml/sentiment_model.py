@@ -84,6 +84,15 @@ TRAINING_DATA = [
     ("happy with service delivery and product quality all good", "positive"),
     ("excellent will definitely purchase again very satisfied", "positive"),
     ("yes I am delighted with the product and service", "positive"),
+         # Add to TRAINING_DATA list:
+("good to listen about it great news", "positive"),
+("wonderful to hear that amazing", "positive"),
+("glad to know that fantastic news", "positive"),
+("sounds great looking forward to it", "positive"),
+("that is wonderful news very happy", "positive"),
+("excellent news thrilled to hear this", "positive"),
+("love to know more about this", "positive"),
+("very interested in this good stuff", "positive"),
 
     # NEGATIVE samples (40)
     ("very disappointed product is broken not working", "negative"),
@@ -183,18 +192,17 @@ def extract_conversation_text(conversation):
     """Extract only user/contact speech from conversation"""
     if not conversation:
         return ""
-
     user_texts = []
     for turn in conversation:
         if isinstance(turn, dict):
             role = turn.get('role', '')
             content = turn.get('content', '')
             if role == 'user' and content and content not in [
-                '(no response)', '(could not hear)',
-                '(mic error)', '(stopped)', '(not supported)'
+                '(no response)', '(could not hear)', '(mic error)',
+                '(stopped)', '(not supported)', '(no speech detected)',
+                'हाँ ठीक है'
             ]:
                 user_texts.append(str(content))
-
     return ' '.join(user_texts)
 
 

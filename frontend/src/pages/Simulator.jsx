@@ -44,7 +44,9 @@ export default function Simulator() {
   const [emotionCounts, setEmotionCounts] = useState({})
   const [recordings, setRecordings] = useState([])
   const [isRecording, setIsRecording] = useState(false)
-
+  const [manualInput, setManualInput] = useState('')
+  const [waitingForManualInput, setWaitingForManualInput] = useState(false)
+  const manualInputResolveRef = useRef(null)
   const recognitionRef = useRef(null)
   const synthRef = useRef(window.speechSynthesis)
   const pausedRef = useRef(false)
@@ -194,66 +196,51 @@ export default function Simulator() {
 
   // LISTEN with timeout — only for English
   const listenOnce = () => {
-    return new Promise((resolve) => {
-      if (stoppedRef.current) { resolve('(stopped)'); return }
+  return new Promise((resolve) => {
+    if (stoppedRef.current) { resolve('(stopped)'); return }
 
-      const lang = campaign?.language || 'en-US'
+    const lang = campaign?.language || 'en-US'
 
-      // For Hindi/Marathi, Web Speech STT is unreliable — use text input simulation
-      if (lang === 'hi-IN' || lang === 'mr-IN') {
-        // Give 5 seconds for response then continue
-        setCurrentText('🎤 Listening... (speak now)')
-        setTimeout(() => {
-          if (!stoppedRef.current) resolve('हाँ ठीक है')
-        }, 5000)
-        return
+    // For Hindi/Marathi — use text input
+    if (lang === 'hi-IN' || lang === 'mr-IN') {
+      setWaitingForManualInput(true)
+      setCurrentText('📝 Type your response below and press Send')
+      manualInputResolveRef.current = (text) => {
+        setWaitingForManualInput(false)
+        setManualInput('')
+        resolve(text)
       }
+      return
+    }
 
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      if (!SpeechRecognition) { resolve('(not supported)'); return }
+    // English — use speech recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) { resolve('(not supported)'); return }
 
-      const recognition = new SpeechRecognition()
-      recognition.lang = lang
-      recognition.interimResults = false
-      recognition.maxAlternatives = 1
-      recognitionRef.current = recognition
+    const recognition = new SpeechRecognition()
+    recognition.lang = lang
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+    recognitionRef.current = recognition
 
-      let resolved = false
-      let timeoutId = null
-
-      const done = (text) => {
-        if (!resolved) {
-          resolved = true
-          if (timeoutId) clearTimeout(timeoutId)
-          resolve(text)
-        }
+    let resolved = false
+    let timeoutId = null
+    const done = (text) => {
+      if (!resolved) {
+        resolved = true
+        if (timeoutId) clearTimeout(timeoutId)
+        resolve(text)
       }
+    }
 
-      // 10 second timeout
-      timeoutId = setTimeout(() => done('(no response)'), 10000)
-
-      recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript
-        console.log('Heard:', transcript)
-        done(transcript)
-      }
-      recognition.onerror = (e) => {
-        console.error('Speech error:', e.error)
-        if (e.error === 'no-speech') done('(no response)')
-        else if (e.error === 'not-allowed') done('(mic not allowed)')
-        else done('(could not hear)')
-      }
-      recognition.onend = () => done('(no response)')
-
-      try {
-        recognition.start()
-        console.log(`Listening in ${lang}...`)
-      } catch (e) {
-        done('(mic error)')
-      }
-    })
-  }
-
+    timeoutId = setTimeout(() => done('(no response)'), 12000)
+    recognition.onresult = (e) => done(e.results[0][0].transcript)
+    recognition.onerror = (e) => done(e.error === 'no-speech' ? '(no response)' : '(could not hear)')
+    recognition.onend = () => done('(no response)')
+    try { recognition.start() } catch (e) { done('(mic error)') }
+  })
+}
+     
   const stopListening = () => {
     try { recognitionRef.current?.stop() } catch (e) {}
   }
@@ -419,25 +406,30 @@ export default function Simulator() {
       })
 
       // Save recording if we have audio
-      if (audioData && transcriptRes.data?.id) {
-        try {
-          await API.post('/api/recordings/', {
-            contact_id: contact.id,
-            campaign_id: campaignId,
-            transcript_id: transcriptRes.data.id,
-            audio_data: audioData,
-            duration: convo.length * 15
-          })
-          setRecordings(prev => [...prev, {
-            contact: contact.name || contact.phone,
-            audio: audioData,
-            time: new Date().toLocaleTimeString()
-          }])
-          addLog(contact, 'Recording saved!', 'success')
-        } catch (recErr) {
-          console.error('Recording save error:', recErr)
-        }
-      }
+      // Save recording locally instead of Supabase
+if (audioData) {
+  const recKey = `voiceiq_rec_${contact.id}_${Date.now()}`
+  const recData = {
+    id: recKey,
+    contact: contact.name || contact.phone,
+    phone: contact.phone,
+    campaign_id: campaignId,
+    audio: audioData,
+    time: new Date().toLocaleString(),
+    duration: convo.length * 15
+  }
+  try {
+    const existing = JSON.parse(localStorage.getItem('voiceiq_recordings') || '[]')
+    existing.push(recData)
+    // Keep only last 10 recordings to avoid storage limit
+    const trimmed = existing.slice(-10)
+    localStorage.setItem('voiceiq_recordings', JSON.stringify(trimmed))
+    setRecordings(prev => [...prev, recData])
+    addLog(contact, '🎙️ Recording saved locally!', 'success')
+  } catch (e) {
+    console.error('Could not save recording:', e)
+  }
+}
 
       await updateContactStatus(contact.id, 'completed')
       addLog(contact, `Saved! Sentiment: ${sentiment} | Empathy: ${empathyScore}`, 'success')
@@ -691,54 +683,39 @@ export default function Simulator() {
             </div>
           </div>
 
-          {/* MIDDLE — Transcript */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">💬 Live Transcript</h2>
-            <div className="flex-1 space-y-3 max-h-80 overflow-y-auto mb-4">
-              {conversation.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-5xl mb-3">🎙️</p>
-                  <p className="text-gray-400 text-sm">Conversation appears here</p>
-                  <p className="text-gray-300 text-xs mt-1">Use Chrome browser</p>
-                </div>
-              ) : conversation.map((turn, i) => {
-                const ec = EMOTION_CONFIG[turn.emotion] || EMOTION_CONFIG.neutral
-                return (
-                  <div key={i} className={`flex ${turn.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                    <div className={`max-w-xs px-4 py-2 rounded-2xl text-sm ${turn.role === 'assistant' ? 'bg-indigo-100 text-indigo-900 rounded-tl-none' : 'bg-gray-100 text-gray-800 rounded-tr-none'}`}>
-                      <div className="flex items-center gap-1 mb-1">
-                        <p className="text-xs font-medium opacity-60">
-                          {turn.role === 'assistant' ? '🤖 AI' : '👤 Contact'}
-                        </p>
-                        {turn.role === 'user' && turn.emotion && turn.emotion !== 'neutral' && (
-                          <span className="text-xs">{ec.emoji}</span>
-                        )}
-                      </div>
-                      {turn.content}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Activity log */}
-            <div className="border-t border-gray-100 pt-3">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Activity Log</h3>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {log.length === 0 ? (
-                  <p className="text-xs text-gray-400">No activity yet</p>
-                ) : log.slice(-15).map((entry, i) => (
-                  <div key={i} className="flex gap-2 text-xs">
-                    <span className="text-gray-400 shrink-0">{entry.time}</span>
-                    <span className={`shrink-0 font-medium ${entry.type === 'success' ? 'text-green-600' : entry.type === 'error' ? 'text-red-500' : entry.type === 'start' ? 'text-indigo-600' : 'text-gray-500'}`}>
-                      [{entry.contact}]
-                    </span>
-                    <span className="text-gray-600">{entry.message}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          {/* Manual text input for Hindi/Marathi */}
+{waitingForManualInput && (
+  <div className="border-t border-indigo-100 pt-3 mt-3">
+    <p className="text-xs text-indigo-600 font-medium mb-2">
+      📝 Type response (Hindi/Marathi mode):
+    </p>
+    <div className="flex gap-2">
+      <input
+        type="text"
+        value={manualInput}
+        onChange={e => setManualInput(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter' && manualInput.trim() && manualInputResolveRef.current) {
+            manualInputResolveRef.current(manualInput.trim())
+          }
+        }}
+        placeholder="Type your response and press Enter or Send..."
+        className="flex-1 border border-indigo-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        autoFocus
+      />
+      <button
+        onClick={() => {
+          if (manualInput.trim() && manualInputResolveRef.current) {
+            manualInputResolveRef.current(manualInput.trim())
+          }
+        }}
+        className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700"
+      >
+        Send
+      </button>
+    </div>
+  </div>
+)}
 
           {/* RIGHT — Analytics + Recordings */}
           <div className="space-y-4">

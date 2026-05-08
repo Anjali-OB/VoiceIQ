@@ -25,7 +25,7 @@ app.register_blueprint(transcripts_bp, url_prefix="/api/transcripts")
 app.register_blueprint(ai_bp, url_prefix="/api/ai")
 app.register_blueprint(ml_bp, url_prefix="/api/ml")
 app.register_blueprint(recordings_bp, url_prefix="/api/recordings")
-app.register_blueprint(recordings_bp, url_prefix="/api/recordings")
+
 
 @app.route("/")
 def index():

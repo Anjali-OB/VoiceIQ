@@ -136,42 +136,46 @@ def generate_synthetic_data(n_samples=300):
         day_of_week = np.random.randint(0, 7)
         past_success_rate = np.random.beta(2, 2)
 
-        # Success probability based on domain knowledge
-        success_prob = 0.3
+        # Success probability — more balanced
+        success_prob = 0.15  # Lower base probability
 
-        # Higher group priority = more likely to respond
-        success_prob += (group_priority - 1) * 0.08
+# Group priority effect
+        success_prob += (group_priority - 1) * 0.06  # max +0.24
 
-        # Having a name = more personalized = better
-        success_prob += has_name * 0.10
+# Having a name
+        success_prob += has_name * 0.08
 
-        # Longer script = more detailed = better preparation
-        success_prob += min(script_word_count / 200, 0.10)
+# Script length
+        success_prob += min(script_word_count / 300, 0.08)
 
-        # Business hours (9am-6pm) = better pickup rate
+# Business hours (9am-6pm)
         if 9 <= hour_of_day <= 18:
-            success_prob += 0.12
+           success_prob += 0.10
+        else:
+           success_prob -= 0.05  # penalty for off-hours
 
-        # Weekdays better than weekends
+# Weekdays
         if day_of_week < 5:
-            success_prob += 0.08
+           success_prob += 0.06
+        else:
+           success_prob -= 0.08  # weekend penalty
 
-        # Past success rate is a strong predictor
-        success_prob += past_success_rate * 0.20
+# Past success rate — strongest predictor
+        success_prob += past_success_rate * 0.25
 
-        # English calls slightly better success (wider reach)
+# English
         if language_code == 1:
-            success_prob += 0.05
+           success_prob += 0.04
 
-        # Newer campaigns (< 7 days) perform better
+# New campaigns
         if campaign_age_days < 7:
-            success_prob += 0.05
+           success_prob += 0.04
+        elif campaign_age_days > 20:
+           success_prob -= 0.03
 
-        success_prob = np.clip(success_prob, 0.05, 0.95)
-
-        # Add noise for realism
-        success_prob += np.random.normal(0, 0.05)
-        success_prob = np.clip(success_prob, 0.0, 1.0)
+# Add noise
+        success_prob += np.random.normal(0, 0.08)
+        success_prob = np.clip(success_prob, 0.05, 0.90)
 
         outcome = 1 if np.random.random() < success_prob else 0
 

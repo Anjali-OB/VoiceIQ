@@ -5,6 +5,7 @@ from config import Config
 import hashlib
 import random
 import string
+import requests as http_requests
 
 auth_bp = Blueprint("auth", __name__)
 supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
@@ -129,3 +130,44 @@ def get_stats():
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+@auth_bp.route("/google", methods=["POST"])
+def google_login():
+    try:
+        token = request.json.get("token")
+        # Verify token with Google
+        google_res = http_requests.get(
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={token}"
+        )
+        google_data = google_res.json()
+
+        if "error" in google_data:
+            return jsonify({"error": "Invalid Google token"}), 401
+
+        email = google_data.get("email")
+        name = google_data.get("name", email.split("@")[0])
+        google_id = google_data.get("sub")
+
+        # Check if user exists
+        existing = supabase.table("users").select("*").eq("email", email).execute()
+
+        if existing.data:
+            user = existing.data[0]
+        else:
+            # Create new user from Google
+            new_user = supabase.table("users").insert({
+                "email": email,
+                "name": name,
+                "password": hash_password(google_id)  # Use google_id as password
+            }).execute()
+            user = new_user.data[0]
+
+        token_jwt = create_access_token(identity=user["id"])
+        return jsonify({
+            "token": token_jwt,
+            "user": {"id": user["id"], "email": email, "name": name}
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500    
