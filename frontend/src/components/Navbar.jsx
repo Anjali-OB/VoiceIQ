@@ -19,6 +19,8 @@ export default function Navbar() {
   { to: '/ml', label: '🤖 ML' },
   { to: '/rf-predictor', label: '🌲 RF Model' },
   { to: '/nlp', label: '📝 NLP' },
+   { to: '/churn', label: '🔵 Churn' },
+  { to: '/lstm', label: '🧠 LSTM' },
 ]
 
   const isActive = (path) => location.pathname === path

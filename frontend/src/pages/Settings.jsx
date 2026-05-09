@@ -517,29 +517,32 @@ export default function Settings() {
                   <h2 className="text-base font-semibold text-gray-700 mb-4">✅ All 16 modules</h2>
                   <div className="space-y-1">
                     {[
-                      'User Authentication (JWT)',
-                      'Contact Management (CSV/Excel Upload)',
-                      'Campaign Engine (Create, Schedule, Manage)',
-                      'AI Call Simulator (Web Speech API)',
-                      'Transcript Storage & Retrieval',
-                      'Analytics Dashboard (Charts & Stats)',
-                      'AI Script Builder (Groq LLM)',
-                      'Call Scheduling (Date & Time)',
-                      'Contact Groups & Tagging',
-                      'Post-Call Campaign Report (PDF)',
-                      'Multi-language Support (EN/HI/MR)',
-                      'Settings & Profile Management',
-                      '🧠 Emotion-Adaptive AI Caller',
-                      '🔮 AI Call Outcome Predictor',
-                      '🤖 ML Sentiment Analysis (scikit-learn)',
-                      '🎙️ Call Recording & Playback',
-                    ].map((mod, i) => (
-                      <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0 text-sm">
-                        <span className="text-indigo-400 font-bold text-xs w-6 shrink-0">{i + 1}.</span>
-                        <span className="text-gray-700 flex-1">{mod}</span>
-                        <span className="text-green-500 text-xs shrink-0">✅</span>
-                      </div>
-                    ))}
+  'User Authentication (JWT)',
+  'Contact Management (CSV/Excel)',
+  'Campaign Engine',
+  'AI Call Simulator (Web Speech API)',
+  'Transcript Storage & Retrieval',
+  'Analytics Dashboard',
+  'AI Script Builder (Groq LLM)',
+  'Call Scheduling',
+  'Contact Groups & Tagging',
+  'Post-Call Campaign Report (PDF)',
+  'Multi-language Support (EN/HI/MR)',
+  'Settings & Profile Management',
+  '🧠 Emotion-Adaptive AI Caller',
+  '🔮 AI Call Outcome Predictor',
+  '🤖 ML Sentiment Analysis (TF-IDF + LR)',
+  '🌲 Random Forest Call Success Predictor',
+  '📝 NLP Keyword & Topic Extractor',
+  '🔵 K-Means + SVM Churn Predictor',
+  '🧠 LSTM Deep Learning Quality Scorer',
+].map((mod, i) => (
+  <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0 text-sm">
+    <span className="text-indigo-400 font-bold text-xs w-6 shrink-0">{i + 1}.</span>
+    <span className="text-gray-700 flex-1">{mod}</span>
+    <span className="text-green-500 text-xs shrink-0">✅</span>
+  </div>
+))}
                   </div>
                 </div>
 

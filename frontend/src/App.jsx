@@ -14,6 +14,8 @@ import MLAnalytics from './pages/MLAnalytics'
 import Recordings from './pages/Recordings'
 import RFPredictor from './pages/RFPredictor'
 import NLPAnalytics from './pages/NLPAnalytics'
+import ChurnPredictor from './pages/ChurnPredictor'
+import LSTMQuality from './pages/LSTMQuality'
 
 export default function App() {
   return (
@@ -34,6 +36,8 @@ export default function App() {
         <Route path="/recordings" element={<ProtectedRoute><Recordings /></ProtectedRoute>} />
         <Route path="/rf-predictor" element={<ProtectedRoute><RFPredictor /></ProtectedRoute>} />
         <Route path="/nlp" element={<ProtectedRoute><NLPAnalytics /></ProtectedRoute>} />
+        <Route path="/churn" element={<ProtectedRoute><ChurnPredictor /></ProtectedRoute>} />
+        <Route path="/lstm" element={<ProtectedRoute><LSTMQuality /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

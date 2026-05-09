@@ -10,6 +10,14 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 ml_bp = Blueprint("ml", __name__)
 supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
 
+def get_churn_model():
+    from ml.churn_model import train_churn_model, predict_churn, predict_churn_batch, get_churn_stats
+    return train_churn_model, predict_churn, predict_churn_batch, get_churn_stats
+
+def get_lstm_model():
+    from ml.lstm_quality import train_lstm_model, predict_quality, get_lstm_stats
+    return train_lstm_model, predict_quality, get_lstm_stats
+
 def get_sentiment_model():
     from ml.sentiment_model import predict_sentiment, train_model, get_model_stats, extract_conversation_text
     return predict_sentiment, train_model, get_model_stats, extract_conversation_text
@@ -264,3 +272,222 @@ def nlp_analyze():
     except Exception as e:
         print(f"NLP analysis error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+# ── CHURN ROUTES (Module 18) ──────────────────────────────────────
+
+@ml_bp.route("/churn/train", methods=["POST"])
+@jwt_required()
+def train_churn():
+    try:
+        train_churn_model, _, __, ___ = get_churn_model()
+        user_id = get_jwt_identity()
+        real_contacts = []
+        try:
+            campaigns = supabase.table("campaigns").select("id").eq("user_id", user_id).execute()
+            if campaigns.data:
+                campaign_ids = [c["id"] for c in campaigns.data]
+                contacts = supabase.table("contacts").select("*").in_("campaign_id", campaign_ids).execute()
+                transcripts = supabase.table("transcripts").select("contact_id, sentiment, duration").in_("campaign_id", campaign_ids).execute()
+
+                t_map = {}
+                for t in transcripts.data:
+                    cid = t["contact_id"]
+                    if cid not in t_map:
+                        t_map[cid] = {'sentiments': [], 'durations': []}
+                    t_map[cid]['sentiments'].append(t.get("sentiment", "neutral"))
+                    t_map[cid]['durations'].append(t.get("duration", 0))
+
+                for c in contacts.data:
+                    t_data = t_map.get(c["id"], {})
+                    sentiments = t_data.get('sentiments', [])
+                    durations = t_data.get('durations', [])
+                    s_map = {'positive': 1.0, 'neutral': 0.0, 'negative': -1.0}
+                    avg_s = np.mean([s_map.get(s, 0) for s in sentiments]) if sentiments else 0.0
+                    pos = sum(1 for s in sentiments if s == 'positive')
+                    neg = sum(1 for s in sentiments if s == 'negative')
+                    no_resp = 0
+                    real_contacts.append({
+                        'id': c['id'],
+                        'name': c.get('name', ''),
+                        'phone': c.get('phone', ''),
+                        'group_name': c.get('group_name', 'General'),
+                        'call_count': max(len(sentiments), 1),
+                        'avg_sentiment': float(avg_s),
+                        'response_rate': pos / max(len(sentiments), 1),
+                        'no_response_count': no_resp,
+                        'avg_duration': float(np.mean(durations)) if durations else 30.0,
+                        'positive_calls': pos,
+                        'negative_calls': neg,
+                        'churn_risk': neg > pos
+                    })
+        except Exception as e:
+            print(f"Could not fetch real contacts: {e}")
+
+        import numpy as np
+        stats = train_churn_model(real_contacts if real_contacts else None)
+        return jsonify(stats), 200
+    except Exception as e:
+        print(f"Churn training error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/churn/stats", methods=["GET"])
+@jwt_required()
+def churn_stats():
+    try:
+        _, __, ___, get_churn_stats = get_churn_model()
+        return jsonify(get_churn_stats()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/churn/predict", methods=["POST"])
+@jwt_required()
+def churn_predict():
+    try:
+        _, predict_churn, __, ___ = get_churn_model()
+        return jsonify(predict_churn(request.json)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/churn/campaign", methods=["POST"])
+@jwt_required()
+def churn_campaign():
+    try:
+        _, __, predict_churn_batch, ___ = get_churn_model()
+        import numpy as np
+        campaign_id = request.json.get("campaign_id")
+        contacts = supabase.table("contacts").select("*").eq("campaign_id", campaign_id).execute()
+        transcripts = supabase.table("transcripts").select("contact_id, sentiment, duration").eq("campaign_id", campaign_id).execute()
+
+        t_map = {}
+        for t in transcripts.data:
+            cid = t["contact_id"]
+            if cid not in t_map:
+                t_map[cid] = {'sentiments': [], 'durations': []}
+            t_map[cid]['sentiments'].append(t.get("sentiment", "neutral"))
+            t_map[cid]['durations'].append(t.get("duration", 0))
+
+        enriched = []
+        s_map = {'positive': 1.0, 'neutral': 0.0, 'negative': -1.0}
+        for c in contacts.data:
+            t_data = t_map.get(c["id"], {})
+            sentiments = t_data.get('sentiments', [])
+            durations = t_data.get('durations', [])
+            avg_s = float(np.mean([s_map.get(s, 0) for s in sentiments])) if sentiments else 0.0
+            pos = sum(1 for s in sentiments if s == 'positive')
+            neg = sum(1 for s in sentiments if s == 'negative')
+            enriched.append({
+                'id': c['id'], 'name': c.get('name', ''), 'phone': c.get('phone', ''),
+                'group_name': c.get('group_name', 'General'),
+                'call_count': max(len(sentiments), 1),
+                'avg_sentiment': avg_s,
+                'response_rate': pos / max(len(sentiments), 1),
+                'no_response_count': 0,
+                'avg_duration': float(np.mean(durations)) if durations else 30.0,
+                'positive_calls': pos, 'negative_calls': neg
+            })
+
+        results = predict_churn_batch(enriched)
+        return jsonify({"results": results, "total": len(results)}), 200
+    except Exception as e:
+        print(f"Churn campaign error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ── LSTM ROUTES (Module 19) ───────────────────────────────────────
+
+@ml_bp.route("/lstm/train", methods=["POST"])
+@jwt_required()
+def lstm_train():
+    try:
+        train_lstm_model, _, __ = get_lstm_model()
+        user_id = get_jwt_identity()
+        transcripts_data = []
+        try:
+            campaigns = supabase.table("campaigns").select("id").eq("user_id", user_id).execute()
+            if campaigns.data:
+                campaign_ids = [c["id"] for c in campaigns.data]
+                result = supabase.table("transcripts").select("conversation, sentiment").in_("campaign_id", campaign_ids).execute()
+                transcripts_data = result.data
+                print(f"Found {len(transcripts_data)} real transcripts for LSTM training")
+        except Exception as e:
+            print(f"Could not fetch transcripts: {e}")
+
+        stats = train_lstm_model(transcripts_data if transcripts_data else None)
+        return jsonify(stats), 200
+    except Exception as e:
+        print(f"LSTM training error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/lstm/stats", methods=["GET"])
+@jwt_required()
+def lstm_stats():
+    try:
+        _, __, get_lstm_stats = get_lstm_model()
+        result = get_lstm_stats()
+        if not result:
+            return jsonify({"error": "Model not trained yet"}), 404
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/lstm/predict", methods=["POST"])
+@jwt_required()
+def lstm_predict():
+    try:
+        _, predict_quality, __ = get_lstm_model()
+        data = request.json
+        conversation = data.get("conversation", [])
+        sentiment = data.get("sentiment", "neutral")
+        result = predict_quality(conversation, sentiment)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@ml_bp.route("/lstm/score-campaign", methods=["POST"])
+@jwt_required()
+def lstm_score_campaign():
+    try:
+        _, predict_quality, __ = get_lstm_model()
+        campaign_id = request.json.get("campaign_id")
+        transcripts = supabase.table("transcripts").select("*, contacts(name, phone)").eq("campaign_id", campaign_id).execute()
+
+        if not transcripts.data:
+            return jsonify({"error": "No transcripts found"}), 404
+
+        results = []
+        scores = []
+        for t in transcripts.data:
+            result = predict_quality(t.get("conversation", []), t.get("sentiment", "neutral"))
+            scores.append(result['score'])
+            results.append({
+                "contact": t["contacts"]["name"] if t.get("contacts") else "Unknown",
+                "phone": t["contacts"]["phone"] if t.get("contacts") else "",
+                "score": result['score'],
+                "label": result['label'],
+                "color": result['color'],
+                "sentiment": t.get("sentiment", "neutral"),
+                "features": result.get("features", {})
+            })
+
+        results.sort(key=lambda x: x['score'], reverse=True)
+
+        import numpy as np
+        return jsonify({
+            "results": results,
+            "avg_score": round(float(np.mean(scores)), 1),
+            "max_score": round(float(np.max(scores)), 1),
+            "min_score": round(float(np.min(scores)), 1),
+            "excellent": len([r for r in results if r['score'] >= 85]),
+            "good": len([r for r in results if 70 <= r['score'] < 85]),
+            "average": len([r for r in results if 50 <= r['score'] < 70]),
+            "poor": len([r for r in results if r['score'] < 50])
+        }), 200
+    except Exception as e:
+        print(f"LSTM score campaign error: {str(e)}")
+        return jsonify({"error": str(e)}), 500        
