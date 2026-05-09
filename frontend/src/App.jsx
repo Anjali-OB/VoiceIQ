@@ -16,6 +16,7 @@ import RFPredictor from './pages/RFPredictor'
 import NLPAnalytics from './pages/NLPAnalytics'
 import ChurnPredictor from './pages/ChurnPredictor'
 import LSTMQuality from './pages/LSTMQuality'
+import FaceVerifier from './pages/FaceVerifier'
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/nlp" element={<ProtectedRoute><NLPAnalytics /></ProtectedRoute>} />
         <Route path="/churn" element={<ProtectedRoute><ChurnPredictor /></ProtectedRoute>} />
         <Route path="/lstm" element={<ProtectedRoute><LSTMQuality /></ProtectedRoute>} />
+        <Route path="/vision" element={<ProtectedRoute><FaceVerifier /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

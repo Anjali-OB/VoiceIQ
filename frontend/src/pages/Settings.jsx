@@ -493,13 +493,17 @@ export default function Settings() {
                   <div className="grid grid-cols-2 gap-3">
                     {[
                       { icon: '⚛️', label: 'Frontend', value: 'React 18 + Vite + Tailwind CSS' },
-                      { icon: '🐍', label: 'Backend', value: 'Python Flask REST API' },
-                      { icon: '🤖', label: 'AI Engine', value: 'Groq LLaMA 3.3 70B' },
-                      { icon: '🎤', label: 'Voice', value: 'Web Speech API (TTS + STT)' },
-                      { icon: '🧠', label: 'ML Model', value: 'scikit-learn + TF-IDF' },
-                      { icon: '🗄️', label: 'Database', value: 'Supabase PostgreSQL' },
-                      { icon: '🔐', label: 'Auth', value: 'JWT (Flask-JWT-Extended)' },
-                      { icon: '🚀', label: 'Deploy', value: 'Vercel + Render + Docker' },
+  { icon: '🐍', label: 'Backend', value: 'Python Flask REST API' },
+  { icon: '🤖', label: 'AI Engine', value: 'Groq LLaMA 3.3 70B' },
+  { icon: '🎤', label: 'Voice', value: 'Web Speech API (TTS + STT)' },
+  { icon: '🧠', label: 'Deep Learning', value: 'LSTM Neural Network (TF/Keras)' },
+  { icon: '🌲', label: 'ML Models', value: 'Random Forest + SVM + K-Means' },
+  { icon: '📝', label: 'NLP', value: 'TF-IDF + Topic Modelling + NER' },
+  { icon: '👁️', label: 'Computer Vision', value: 'OpenCV + face_recognition' },
+  { icon: '🗄️', label: 'Database', value: 'Supabase PostgreSQL' },
+  { icon: '🔐', label: 'Auth', value: 'JWT + Google OAuth2' },
+  { icon: '🚀', label: 'Deployment', value: 'Vercel + Render + Docker' },
+  { icon: '🐳', label: 'DevOps', value: 'Docker + GitHub Actions CI/CD' },
                     ].map(item => (
                       <div key={item.label} className="flex items-start gap-2 bg-gray-50 rounded-xl p-3">
                         <span className="text-lg shrink-0">{item.icon}</span>
@@ -536,6 +540,7 @@ export default function Settings() {
   '📝 NLP Keyword & Topic Extractor',
   '🔵 K-Means + SVM Churn Predictor',
   '🧠 LSTM Deep Learning Quality Scorer',
+  '👁️ Computer Vision Face Verifier (OpenCV + HOG)',
 ].map((mod, i) => (
   <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0 text-sm">
     <span className="text-indigo-400 font-bold text-xs w-6 shrink-0">{i + 1}.</span>

@@ -56,3 +56,11 @@ export const getRFStats = () => API.get('/api/ml/rf/stats')
 export const rfPredict = (data) => API.post('/api/ml/rf/predict', data)
 export const rfPredictBatch = (data) => API.post('/api/ml/rf/predict-batch', data)
 export const rfCampaignAnalysis = (data) => API.post('/api/ml/rf/campaign-analysis', data)
+
+// Computer Vision
+export const getVisionInfo = () => API.get('/api/vision/info')
+export const analyzeImage = (data) => API.post('/api/vision/analyze', data)
+export const registerFace = (data) => API.post('/api/vision/register', data)
+export const verifyFace = (data) => API.post('/api/vision/verify', data)
+export const getRegisteredFaces = () => API.get('/api/vision/registered')
+export const deleteFace = (contactId) => API.delete(`/api/vision/delete/${contactId}`)

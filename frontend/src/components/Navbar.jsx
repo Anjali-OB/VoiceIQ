@@ -21,6 +21,7 @@ export default function Navbar() {
   { to: '/nlp', label: '📝 NLP' },
    { to: '/churn', label: '🔵 Churn' },
   { to: '/lstm', label: '🧠 LSTM' },
+  { to: '/vision', label: '👁️ Vision' },
 ]
 
   const isActive = (path) => location.pathname === path
