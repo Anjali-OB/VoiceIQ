@@ -518,7 +518,7 @@ export default function Settings() {
 
                 {/* All 16 modules */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-6">
-                  <h2 className="text-base font-semibold text-gray-700 mb-4">✅ All 16 modules</h2>
+                  <h2 className="text-base font-semibold text-gray-700 mb-4">✅ All 20 modules</h2>
                   <div className="space-y-1">
                     {[
   'User Authentication (JWT)',

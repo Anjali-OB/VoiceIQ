@@ -57,6 +57,21 @@ export const rfPredict = (data) => API.post('/api/ml/rf/predict', data)
 export const rfPredictBatch = (data) => API.post('/api/ml/rf/predict-batch', data)
 export const rfCampaignAnalysis = (data) => API.post('/api/ml/rf/campaign-analysis', data)
 
+// NLP
+export const nlpAnalyze = (data) => API.post('/api/ml/nlp/analyze', data)
+
+// Churn Predictor — was missing, caused app-wide crash
+export const trainChurnModel = () => API.post('/api/ml/churn/train')
+export const getChurnStats = () => API.get('/api/ml/churn/stats')
+export const churnPredict = (data) => API.post('/api/ml/churn/predict', data)
+export const churnCampaignAnalysis = (data) => API.post('/api/ml/churn/campaign', data)
+
+// LSTM Quality Scorer — was missing, caused app-wide crash
+export const trainLSTMModel = () => API.post('/api/ml/lstm/train')
+export const getLSTMStats = () => API.get('/api/ml/lstm/stats')
+export const lstmPredict = (data) => API.post('/api/ml/lstm/predict', data)
+export const scoreCampaign = (data) => API.post('/api/ml/lstm/score-campaign', data)
+
 // Computer Vision
 export const getVisionInfo = () => API.get('/api/vision/info')
 export const analyzeImage = (data) => API.post('/api/vision/analyze', data)

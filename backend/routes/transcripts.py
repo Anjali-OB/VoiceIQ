@@ -9,6 +9,7 @@ supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
 @transcripts_bp.route("/", methods=["POST"])
 @jwt_required()
 def save_transcript():
+    user_id = get_jwt_identity()
     data = request.json
     result = supabase.table("transcripts").insert({
         "contact_id": data.get("contact_id"),
@@ -23,6 +24,16 @@ def save_transcript():
 @transcripts_bp.route("/campaign/<campaign_id>", methods=["GET"])
 @jwt_required()
 def get_by_campaign(campaign_id):
+    user_id = get_jwt_identity()
+    # FIX: verify the campaign belongs to this user before returning transcripts
+    campaign = supabase.table("campaigns")\
+        .select("id")\
+        .eq("id", campaign_id)\
+        .eq("user_id", user_id)\
+        .execute()
+    if not campaign.data:
+        return jsonify([]), 200  # not their campaign — return empty
+
     result = supabase.table("transcripts")\
         .select("*, contacts(name, phone)")\
         .eq("campaign_id", campaign_id)\
@@ -33,9 +44,21 @@ def get_by_campaign(campaign_id):
 @transcripts_bp.route("/", methods=["GET"])
 @jwt_required()
 def get_all():
+    user_id = get_jwt_identity()
     try:
+        # FIX: only return transcripts for campaigns owned by this user
+        campaigns = supabase.table("campaigns")\
+            .select("id")\
+            .eq("user_id", user_id)\
+            .execute()
+        campaign_ids = [c["id"] for c in campaigns.data]
+
+        if not campaign_ids:
+            return jsonify([]), 200
+
         result = supabase.table("transcripts")\
             .select("*, contacts(name, phone), campaigns(name)")\
+            .in_("campaign_id", campaign_ids)\
             .order("created_at", desc=True)\
             .execute()
         return jsonify(result.data), 200
@@ -46,24 +69,24 @@ def get_all():
 @transcripts_bp.route("/report/<campaign_id>", methods=["GET"])
 @jwt_required()
 def get_campaign_report(campaign_id):
+    user_id = get_jwt_identity()
     try:
-        # Get campaign details
+        # FIX: verify campaign ownership
         campaign = supabase.table("campaigns")\
             .select("*")\
             .eq("id", campaign_id)\
+            .eq("user_id", user_id)\
             .execute()
 
         if not campaign.data:
             return jsonify({"error": "Campaign not found"}), 404
 
-        # Get all transcripts with contact info
         transcripts = supabase.table("transcripts")\
             .select("*, contacts(name, phone)")\
             .eq("campaign_id", campaign_id)\
             .order("created_at", desc=True)\
             .execute()
 
-        # Get all contacts
         contacts = supabase.table("contacts")\
             .select("*")\
             .eq("campaign_id", campaign_id)\
@@ -72,7 +95,6 @@ def get_campaign_report(campaign_id):
         t_data = transcripts.data
         c_data = contacts.data
 
-        # Calculate stats
         total = len(c_data)
         completed = len([c for c in c_data if c['status'] == 'completed'])
         pending = len([c for c in c_data if c['status'] == 'pending'])

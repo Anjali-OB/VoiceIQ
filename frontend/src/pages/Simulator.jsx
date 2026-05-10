@@ -53,10 +53,16 @@ export default function Simulator() {
   const stoppedRef = useRef(false)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
-  const currentRecordingRef = useRef(null)
 
   useEffect(() => {
     loadData()
+    // Load existing recordings for this campaign from localStorage
+    try {
+      const saved = JSON.parse(localStorage.getItem('voiceiq_recordings') || '[]')
+      const mine = saved.filter(r => r.campaign_id === campaignId)
+      setRecordings(mine)
+    } catch (e) {}
+
     const loadVoices = () => synthRef.current.getVoices()
     loadVoices()
     if (synthRef.current.onvoiceschanged !== undefined) {
@@ -92,13 +98,13 @@ export default function Simulator() {
     }])
   }
 
-  // START RECORDING
+  // START RECORDING — always clear chunks first to avoid audio bleed between calls
   const startRecording = async () => {
     try {
+      audioChunksRef.current = []   // FIX: clear previous call's audio before starting
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mediaRecorder = new MediaRecorder(stream)
       mediaRecorderRef.current = mediaRecorder
-      audioChunksRef.current = []
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data)
@@ -124,6 +130,7 @@ export default function Simulator() {
         const reader = new FileReader()
         reader.onloadend = () => {
           const base64 = reader.result
+          audioChunksRef.current = []   // FIX: clear after encoding
           setIsRecording(false)
           resolve(base64)
         }
@@ -134,7 +141,6 @@ export default function Simulator() {
     })
   }
 
-  // SPEAK with correct language and gender
   const speak = (text, emotionSuggestion = 'normal') => {
     return new Promise((resolve) => {
       if (stoppedRef.current) { resolve(); return }
@@ -154,12 +160,8 @@ export default function Simulator() {
 
       const voices = synthRef.current.getVoices()
       let langVoices = voices.filter(v => v.lang === lang)
-      if (langVoices.length === 0) {
-        langVoices = voices.filter(v => v.lang.startsWith(lang.split('-')[0]))
-      }
-      if (langVoices.length === 0) {
-        langVoices = voices.filter(v => v.lang.startsWith('en'))
-      }
+      if (langVoices.length === 0) langVoices = voices.filter(v => v.lang.startsWith(lang.split('-')[0]))
+      if (langVoices.length === 0) langVoices = voices.filter(v => v.lang.startsWith('en'))
 
       let selectedVoice = null
       if (gender === 'female') {
@@ -179,11 +181,7 @@ export default function Simulator() {
         ) || langVoices[langVoices.length - 1]
       }
 
-      if (selectedVoice) {
-        utterance.voice = selectedVoice
-        console.log(`Voice: ${selectedVoice.name} (${lang}, ${gender})`)
-      }
-
+      if (selectedVoice) utterance.voice = selectedVoice
       utterance.onend = resolve
       utterance.onerror = resolve
       synthRef.current.speak(utterance)
@@ -194,53 +192,50 @@ export default function Simulator() {
     if (synthRef.current?.speaking) synthRef.current.cancel()
   }
 
-  // LISTEN with timeout — only for English
   const listenOnce = () => {
-  return new Promise((resolve) => {
-    if (stoppedRef.current) { resolve('(stopped)'); return }
+    return new Promise((resolve) => {
+      if (stoppedRef.current) { resolve('(stopped)'); return }
 
-    const lang = campaign?.language || 'en-US'
+      const lang = campaign?.language || 'en-US'
 
-    // For Hindi/Marathi — use text input
-    if (lang === 'hi-IN' || lang === 'mr-IN') {
-      setWaitingForManualInput(true)
-      setCurrentText('📝 Type your response below and press Send')
-      manualInputResolveRef.current = (text) => {
-        setWaitingForManualInput(false)
-        setManualInput('')
-        resolve(text)
+      if (lang === 'hi-IN' || lang === 'mr-IN') {
+        setWaitingForManualInput(true)
+        setCurrentText('📝 Type your response below and press Send')
+        manualInputResolveRef.current = (text) => {
+          setWaitingForManualInput(false)
+          setManualInput('')
+          resolve(text)
+        }
+        return
       }
-      return
-    }
 
-    // English — use speech recognition
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) { resolve('(not supported)'); return }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (!SpeechRecognition) { resolve('(not supported)'); return }
 
-    const recognition = new SpeechRecognition()
-    recognition.lang = lang
-    recognition.interimResults = false
-    recognition.maxAlternatives = 1
-    recognitionRef.current = recognition
+      const recognition = new SpeechRecognition()
+      recognition.lang = lang
+      recognition.interimResults = false
+      recognition.maxAlternatives = 1
+      recognitionRef.current = recognition
 
-    let resolved = false
-    let timeoutId = null
-    const done = (text) => {
-      if (!resolved) {
-        resolved = true
-        if (timeoutId) clearTimeout(timeoutId)
-        resolve(text)
+      let resolved = false
+      let timeoutId = null
+      const done = (text) => {
+        if (!resolved) {
+          resolved = true
+          if (timeoutId) clearTimeout(timeoutId)
+          resolve(text)
+        }
       }
-    }
 
-    timeoutId = setTimeout(() => done('(no response)'), 12000)
-    recognition.onresult = (e) => done(e.results[0][0].transcript)
-    recognition.onerror = (e) => done(e.error === 'no-speech' ? '(no response)' : '(could not hear)')
-    recognition.onend = () => done('(no response)')
-    try { recognition.start() } catch (e) { done('(mic error)') }
-  })
-}
-     
+      timeoutId = setTimeout(() => done('(no response)'), 12000)
+      recognition.onresult = (e) => done(e.results[0][0].transcript)
+      recognition.onerror = (e) => done(e.error === 'no-speech' ? '(no response)' : '(could not hear)')
+      recognition.onend = () => done('(no response)')
+      try { recognition.start() } catch (e) { done('(mic error)') }
+    })
+  }
+
   const stopListening = () => {
     try { recognitionRef.current?.stop() } catch (e) {}
   }
@@ -265,6 +260,46 @@ export default function Simulator() {
     setEmpathyScore(prev => Math.min(100, Math.max(0, prev + delta)))
   }
 
+  // FIX: save recording to localStorage with size guard to prevent storage overflow
+  const saveRecordingLocally = (contact, audioData, convo) => {
+    if (!audioData) return
+    // Guard: base64 audio >2MB is too large for localStorage — skip silently
+    if (audioData.length > 2 * 1024 * 1024) {
+      addLog(contact, '⚠️ Recording too large to save locally (>2MB)', 'info')
+      return
+    }
+    const recData = {
+      id: `voiceiq_rec_${contact.id}_${Date.now()}`,
+      contact: contact.name || contact.phone,
+      phone: contact.phone,
+      campaign_id: campaignId,
+      audio: audioData,
+      time: new Date().toLocaleString(),
+      duration: convo.length * 15
+    }
+    try {
+      const existing = JSON.parse(localStorage.getItem('voiceiq_recordings') || '[]')
+      existing.push(recData)
+      // Keep only last 5 to stay well within 5MB localStorage limit
+      const trimmed = existing.slice(-5)
+      localStorage.setItem('voiceiq_recordings', JSON.stringify(trimmed))
+      setRecordings(prev => [...prev, recData])
+      addLog(contact, '🎙️ Recording saved!', 'success')
+    } catch (e) {
+      // Storage quota exceeded — remove oldest and try once more
+      try {
+        const existing = JSON.parse(localStorage.getItem('voiceiq_recordings') || '[]')
+        const trimmed = existing.slice(-2)
+        trimmed.push(recData)
+        localStorage.setItem('voiceiq_recordings', JSON.stringify(trimmed))
+        setRecordings(prev => [...prev, recData])
+        addLog(contact, '🎙️ Recording saved (old ones cleared)', 'success')
+      } catch (e2) {
+        addLog(contact, '⚠️ Could not save recording — storage full', 'error')
+      }
+    }
+  }
+
   const runCallForContact = async (contact, script) => {
     if (stoppedRef.current) return
 
@@ -280,7 +315,6 @@ export default function Simulator() {
     setStatus('calling')
     addLog(contact, 'Call started', 'start')
 
-    // Start recording
     await startRecording()
 
     const opening = `Hello, am I speaking with ${contact.name || 'there'}? This is an AI assistant calling regarding ${campaign?.name || 'a quick survey'}.`
@@ -292,22 +326,16 @@ export default function Simulator() {
     setConversation([...convo])
 
     for (let turn = 0; turn < 6; turn++) {
-      if (stoppedRef.current) {
-        addLog(contact, 'Call stopped by user', 'error')
-        break
-      }
-
+      if (stoppedRef.current) { addLog(contact, 'Call stopped by user', 'error'); break }
       if (pausedRef.current) await waitUntilResumed()
       if (stoppedRef.current) break
 
-      // Listen
       setStatus('listening')
       setCurrentText('🎤 Listening... speak now')
       const userSpeech = await listenOnce()
       if (stoppedRef.current) break
       setCurrentText('')
 
-      // Detect emotion
       setCurrentText('🧠 Analyzing emotion...')
       let emotion = 'neutral'
       let suggestion = 'normal'
@@ -378,12 +406,9 @@ export default function Simulator() {
       }
     }
 
-    // Stop recording
     const audioData = await stopRecording()
-
     if (stoppedRef.current) return
 
-    // Save transcript and recording
     setStatus('thinking')
     setCurrentText('Saving...')
     addLog(contact, 'Saving transcript and recording...', 'info')
@@ -396,7 +421,7 @@ export default function Simulator() {
       const sentiment = summaryRes.data.sentiment || 'neutral'
       const dominantEmotion = Object.entries(localEmotionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'neutral'
 
-      const transcriptRes = await saveTranscript({
+      await saveTranscript({
         contact_id: contact.id,
         campaign_id: campaignId,
         conversation: convo,
@@ -405,31 +430,30 @@ export default function Simulator() {
         duration: convo.length * 15
       })
 
-      // Save recording if we have audio
-      // Save recording locally instead of Supabase
-if (audioData) {
-  const recKey = `voiceiq_rec_${contact.id}_${Date.now()}`
-  const recData = {
-    id: recKey,
-    contact: contact.name || contact.phone,
-    phone: contact.phone,
-    campaign_id: campaignId,
-    audio: audioData,
-    time: new Date().toLocaleString(),
-    duration: convo.length * 15
-  }
-  try {
-    const existing = JSON.parse(localStorage.getItem('voiceiq_recordings') || '[]')
-    existing.push(recData)
-    // Keep only last 10 recordings to avoid storage limit
-    const trimmed = existing.slice(-10)
-    localStorage.setItem('voiceiq_recordings', JSON.stringify(trimmed))
-    setRecordings(prev => [...prev, recData])
-    addLog(contact, '🎙️ Recording saved locally!', 'success')
-  } catch (e) {
-    console.error('Could not save recording:', e)
-  }
-}
+      // Save recording to Supabase via backend API
+      if (audioData) {
+        try {
+          await API.post("/api/recordings/", {
+            contact_id: contact.id,
+            campaign_id: campaignId,
+            audio_data: audioData,
+            duration: convo.length * 15
+          })
+          const recData = {
+            id: `voiceiq_rec_${contact.id}_${Date.now()}`,
+            contact: contact.name || contact.phone,
+            phone: contact.phone,
+            campaign_id: campaignId,
+            audio: audioData,
+            time: new Date().toLocaleString(),
+            duration: convo.length * 15
+          }
+          setRecordings(prev => [...prev, recData])
+          addLog(contact, "Recording saved!", "success")
+        } catch (e) {
+          addLog(contact, "Recording save failed: " + (e.message || "unknown"), "info")
+        }
+      }
 
       await updateContactStatus(contact.id, 'completed')
       addLog(contact, `Saved! Sentiment: ${sentiment} | Empathy: ${empathyScore}`, 'success')
@@ -447,8 +471,6 @@ if (audioData) {
       alert('No pending contacts. Upload contacts first.')
       return
     }
-
-    // Check microphone permission first
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch (err) {
@@ -683,39 +705,73 @@ if (audioData) {
             </div>
           </div>
 
-          {/* Manual text input for Hindi/Marathi */}
-{waitingForManualInput && (
-  <div className="border-t border-indigo-100 pt-3 mt-3">
-    <p className="text-xs text-indigo-600 font-medium mb-2">
-      📝 Type response (Hindi/Marathi mode):
-    </p>
-    <div className="flex gap-2">
-      <input
-        type="text"
-        value={manualInput}
-        onChange={e => setManualInput(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === 'Enter' && manualInput.trim() && manualInputResolveRef.current) {
-            manualInputResolveRef.current(manualInput.trim())
-          }
-        }}
-        placeholder="Type your response and press Enter or Send..."
-        className="flex-1 border border-indigo-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        autoFocus
-      />
-      <button
-        onClick={() => {
-          if (manualInput.trim() && manualInputResolveRef.current) {
-            manualInputResolveRef.current(manualInput.trim())
-          }
-        }}
-        className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700"
-      >
-        Send
-      </button>
-    </div>
-  </div>
-)}
+          {/* MIDDLE — Conversation + manual input */}
+          <div className="space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">💬 Live Conversation</h2>
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {conversation.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-6">Conversation appears here during calls</p>
+                ) : conversation.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+                    <div className={`max-w-[80%] px-3 py-2 rounded-xl text-xs ${msg.role === 'assistant' ? 'bg-indigo-50 text-indigo-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Manual text input for Hindi/Marathi */}
+              {waitingForManualInput && (
+                <div className="border-t border-indigo-100 pt-3 mt-3">
+                  <p className="text-xs text-indigo-600 font-medium mb-2">
+                    📝 Type response (Hindi/Marathi mode):
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={manualInput}
+                      onChange={e => setManualInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && manualInput.trim() && manualInputResolveRef.current) {
+                          manualInputResolveRef.current(manualInput.trim())
+                        }
+                      }}
+                      placeholder="Type your response and press Enter or Send..."
+                      className="flex-1 border border-indigo-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        if (manualInput.trim() && manualInputResolveRef.current) {
+                          manualInputResolveRef.current(manualInput.trim())
+                        }
+                      }}
+                      className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Call Log */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">📋 Call Log</h2>
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {log.length === 0 ? (
+                  <p className="text-xs text-gray-400">Log appears during calls</p>
+                ) : log.map((entry, i) => (
+                  <div key={i} className={`text-xs px-2 py-1.5 rounded-lg flex gap-2 ${entry.type === 'error' ? 'bg-red-50 text-red-700' : entry.type === 'success' ? 'bg-green-50 text-green-700' : entry.type === 'start' ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-50 text-gray-600'}`}>
+                    <span className="text-gray-400 shrink-0">{entry.time}</span>
+                    <span className="font-medium shrink-0">{entry.contact}</span>
+                    <span>{entry.message}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* RIGHT — Analytics + Recordings */}
           <div className="space-y-4">
@@ -771,12 +827,7 @@ if (audioData) {
                         <p className="text-sm font-medium text-gray-700">{rec.contact}</p>
                         <span className="text-xs text-gray-400">{rec.time}</span>
                       </div>
-                      <audio
-                        controls
-                        src={rec.audio}
-                        className="w-full h-8"
-                        style={{ height: '32px' }}
-                      />
+                      <audio controls src={rec.audio} className="w-full" style={{ height: '32px' }} />
                     </div>
                   ))}
                 </div>

@@ -22,6 +22,7 @@ export default function RFPredictor() {
   const [training, setTraining] = useState(false)
   const [campaigns, setCampaigns] = useState([])
   const [selectedCampaign, setSelectedCampaign] = useState('')
+  const [selectedAnalyzeCampaign, setSelectedAnalyzeCampaign] = useState('')
   const [campaignData, setCampaignData] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [singleContact, setSingleContact] = useState({
@@ -63,10 +64,10 @@ export default function RFPredictor() {
   }
 
   const handleCampaignAnalysis = async () => {
-    if (!selectedCampaign) return
+    if (!selectedAnalyzeCampaign) return
     setAnalyzing(true)
     try {
-      const res = await rfCampaignAnalysis({ campaign_id: selectedCampaign })
+      const res = await rfCampaignAnalysis({ campaign_id: selectedAnalyzeCampaign })
       setCampaignData(res.data)
     } catch (err) {
       alert('Analysis failed: ' + err.message)
@@ -81,7 +82,7 @@ export default function RFPredictor() {
     try {
       const camp = campaigns.find(c => c.id === selectedCampaign)
       const contactsRes = await getContacts(selectedCampaign)
-      const contacts = contactsRes.data.filter(c => c.status !== 'completed')
+      const contacts = contactsRes.data  // rank all contacts, not just pending
 
       const res = await rfPredictBatch({
         contacts,
@@ -524,8 +525,8 @@ export default function RFPredictor() {
                 Analyze a completed campaign — compare RF predictions vs actual call outcomes.
               </p>
               <select
-                value={selectedCampaign}
-                onChange={e => { setSelectedCampaign(e.target.value); setCampaignData(null) }}
+                value={selectedAnalyzeCampaign}
+                onChange={e => { setSelectedAnalyzeCampaign(e.target.value); setCampaignData(null) }}
                 className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"
               >
                 <option value="">Select a campaign...</option>
@@ -533,7 +534,7 @@ export default function RFPredictor() {
               </select>
               <button
                 onClick={handleCampaignAnalysis}
-                disabled={analyzing || !selectedCampaign}
+                disabled={analyzing || !selectedAnalyzeCampaign}
                 className="w-full bg-indigo-600 text-white py-3 rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
               >
                 {analyzing ? '⏳ Analyzing...' : '📊 Run RF Campaign Analysis'}
